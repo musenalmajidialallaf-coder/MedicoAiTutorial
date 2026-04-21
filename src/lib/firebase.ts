@@ -8,13 +8,21 @@ export const auth = getAuth(app);
 export const db = getFirestore(app, firebaseConfig.firestoreDatabaseId);
 export const googleProvider = new GoogleAuthProvider();
 
-// Test connection
+// Improved connection testing
 async function testConnection() {
   try {
-    await getDocFromServer(doc(db, 'test', 'connection'));
-  } catch (error) {
-    if (error instanceof Error && error.message.includes('the client is offline')) {
-      console.error("Please check your Firebase configuration.");
+    // Attempt a read on a path that likely doesn't exist to test connectivity
+    // Permission denied is a SUCCESSFUL connect (rules are working)
+    // "Client is offline" or "Failed to get document" is a FAIL.
+    await getDocFromServer(doc(db, 'system', 'ping'));
+    console.log("Firebase Connectivity: Verified");
+  } catch (error: any) {
+    if (error.code === 'permission-denied') {
+      console.log("Firebase Connectivity: Verified (Access restricted by rules as expected)");
+    } else if (error.message && error.message.includes('the client is offline')) {
+      console.warn("Firestore Connectivity: Client appears to be offline. This might be a temporary network issue or invalid configuration.");
+    } else {
+      console.debug("Firestore connectivity check info:", error.message);
     }
   }
 }

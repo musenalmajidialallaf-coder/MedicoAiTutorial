@@ -45,6 +45,26 @@
         "createdAt": { "type": "string", "format": "date-time", "description": "When the feedback was created" }
       },
       "required": ["userId", "lectureTitle", "type", "createdAt"]
+    },
+    "PublicProfile": {
+      "title": "PublicProfile",
+      "description": "Publicly visible user profile for leaderboards.",
+      "type": "object",
+      "properties": {
+        "uid": { "type": "string", "description": "User ID" },
+        "displayName": { "type": "string", "description": "User display name" },
+        "level": { "type": "string", "enum": ["Beginner", "Intermediate", "Advanced"], "description": "User level" }
+      },
+      "required": ["uid", "displayName", "level"]
+    },
+    "Admin": {
+      "title": "Admin",
+      "description": "Admin users list.",
+      "type": "object",
+      "properties": {
+        "email": { "type": "string", "description": "Admin email" }
+      },
+      "required": ["email"]
     }
   },
   "firestore": {
@@ -59,6 +79,14 @@
     "/feedbacks/{feedbackId}": {
       "schema": { "$ref": "#/entities/Feedback" },
       "description": "Stores user feedbacks on app explanations."
+    },
+    "/public_profiles/{profileId}": {
+      "schema": { "$ref": "#/entities/PublicProfile" },
+      "description": "Stores public profiles for leaderboard."
+    },
+    "/admins/{adminEmail}": {
+      "schema": { "$ref": "#/entities/Admin" },
+      "description": "Stores admin list."
     }
   }
 }

@@ -206,9 +206,25 @@ export default function App() {
 
       setFileData({ base64, mimeType: file.type || 'text/plain' });
 
-      const result = await analyzeLecture(base64, file.type || 'text/plain', stats);
+      // Retry mechanism for the analysis API call
+      let result: LectureAnalysis | null = null;
+      let attempts = 0;
+      const maxAttempts = 2;
+
+      while (attempts < maxAttempts && !result) {
+        try {
+          result = await analyzeLecture(base64, file.type || 'text/plain', stats);
+        } catch (apiError: any) {
+          attempts++;
+          console.error(`Attempt ${attempts} failed:`, apiError);
+          const needsRetry = apiError.message?.includes('xhr') || apiError.message?.includes('500') || apiError.message?.includes('timeout');
+          if (attempts >= maxAttempts || !needsRetry) throw apiError;
+          // Exponential backoff or simple delay
+          await new Promise(r => setTimeout(r, 2000));
+        }
+      }
       
-      if (uploadId !== currentUploadId.current) return; // Cancelled during API call
+      if (uploadId !== currentUploadId.current || !result) return; // Cancelled during API call
 
       setAnalysis(result);
       
@@ -224,10 +240,12 @@ export default function App() {
       incrementFreeUploads();
       navigateTo('explanation', true);
     } catch (error: any) {
-      console.error(error);
+      console.error("Upload process error:", error);
       const errorMessage = error?.message || '';
-      if (errorMessage.includes('xhr error') || errorMessage.includes('timeout')) {
-        alert('انقطع الاتصال بسبب طول العملية أو ضعف الإنترنت. يرجى المحاولة مرة أخرى.');
+      if (errorMessage.includes('xhr error') || errorMessage.includes('500') || errorMessage.includes('timeout')) {
+        alert('انقطع الاتصال بالخادم (خطأ روتيني). يرجى الضغط على زر "رفع ملف" مرة أخرى أو تحديث الصفحة إذا تكرر الخطأ.');
+      } else if (errorMessage.includes('Safety')) {
+        alert('المحتوى المرفوع قد يحتوي على معلومات حساسة تمنع المعالجة بخصوصية عالية.');
       } else {
         alert('حدث خطأ أثناء معالجة الملف. يرجى المحاولة مرة أخرى.');
       }
