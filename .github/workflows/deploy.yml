@@ -42,6 +42,9 @@ jobs:
         run: npm run build
         env:
           GEMINI_API_KEY: ${{ secrets.GEMINI_API_KEY }}
+          env:
+       VITE_GROQ_API_KEY: ${{ secrets.GROQ_API_KEY }}
+
           VITE_GEMINI_API_KEY: ${{ secrets.GEMINI_API_KEY }}
           NODE_ENV: production
       - name: Setup Pages
