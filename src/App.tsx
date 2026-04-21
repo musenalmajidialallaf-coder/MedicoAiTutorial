@@ -18,7 +18,7 @@ type AppState = 'welcome' | 'idle' | 'analyzing' | 'explanation' | 'history' | '
 export default function App() {
   const [user, setUser] = useState<FirebaseUser | null>(null);
   const [isAdmin, setIsAdmin] = useState(false);
-  const { stats, addPastLecture, setDialect, setAIProvider, incrementFreeUploads, upgradeSubscription, totalLectures } = useUserStore(user?.uid);
+  const { stats, addPastLecture, setDialect, incrementFreeUploads, upgradeSubscription, totalLectures } = useUserStore(user?.uid);
   
   const [isAuthReady, setIsAuthReady] = useState(false);
 
@@ -412,7 +412,7 @@ export default function App() {
 
         {appState === 'idle' && (
           <div className="animate-in fade-in duration-500">
-            <Dashboard stats={stats} onDialectChange={setDialect} onAIProviderChange={setAIProvider} onLectureSelect={handleLectureSelect} />
+            <Dashboard stats={stats} onDialectChange={setDialect} onLectureSelect={handleLectureSelect} />
             <div className="bg-white dark:bg-slate-900 p-8 rounded-3xl shadow-sm border border-slate-100 dark:border-slate-800 transition-colors duration-300">
               <h2 className="text-2xl font-bold text-teal-800 dark:text-teal-100 mb-6 text-center">ارفع محاضرتك ونبسطها إلك</h2>
               <Uploader onUpload={handleUpload} isProcessing={false} />
@@ -422,7 +422,7 @@ export default function App() {
 
         {appState === 'analyzing' && (
           <div className="animate-in fade-in duration-500">
-            <Dashboard stats={stats} onDialectChange={setDialect} onAIProviderChange={setAIProvider} onLectureSelect={handleLectureSelect} />
+            <Dashboard stats={stats} onDialectChange={setDialect} onLectureSelect={handleLectureSelect} />
             <div className="bg-white dark:bg-slate-900 p-8 rounded-3xl shadow-sm border border-slate-100 dark:border-slate-800 transition-colors duration-300">
               <Uploader onUpload={() => {}} isProcessing={true} />
             </div>

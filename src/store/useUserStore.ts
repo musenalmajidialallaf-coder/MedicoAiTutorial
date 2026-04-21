@@ -11,7 +11,6 @@ export interface PastLecture {
 }
 
 export type Dialect = 'Iraqi' | 'Moslawi' | 'Egyptian' | 'Maghrebi' | 'Syrian' | 'Gulf' | 'Palestinian' | 'Kurdish' | 'Fusha' | 'English';
-export type AIProvider = 'gemini' | 'mistral' | 'groq';
 
 export interface UserStats {
   level: 'Beginner' | 'Intermediate' | 'Advanced';
@@ -19,7 +18,6 @@ export interface UserStats {
   dialect: Dialect;
   subscription: 'free' | 'paid';
   freeUploadsUsed: number;
-  aiProvider: AIProvider;
 }
 
 const DEFAULT_STATS: UserStats = {
@@ -28,7 +26,6 @@ const DEFAULT_STATS: UserStats = {
   dialect: 'Iraqi',
   subscription: 'free',
   freeUploadsUsed: 0,
-  aiProvider: 'groq',
 };
 
 export function useUserStore(userId?: string) {
@@ -191,10 +188,6 @@ export function useUserStore(userId?: string) {
     saveStats({ ...stats, dialect });
   };
 
-  const setAIProvider = (aiProvider: AIProvider) => {
-    saveStats({ ...stats, aiProvider });
-  };
-
   const incrementFreeUploads = () => {
     saveStats({ ...stats, freeUploadsUsed: (stats.freeUploadsUsed || 0) + 1 });
   };
@@ -203,5 +196,5 @@ export function useUserStore(userId?: string) {
     saveStats({ ...stats, subscription: 'paid' });
   };
 
-  return { stats, addPastLecture, setDialect, setAIProvider, incrementFreeUploads, upgradeSubscription, totalLectures };
+  return { stats, addPastLecture, setDialect, incrementFreeUploads, upgradeSubscription, totalLectures };
 }

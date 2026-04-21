@@ -1,13 +1,12 @@
 import { useEffect, useState } from 'react';
 import { Brain, Target, TrendingUp, Globe, Trophy, History, Cpu } from "lucide-react";
-import { UserStats, Dialect, AIProvider } from "../store/useUserStore";
+import { UserStats, Dialect } from "../store/useUserStore";
 import { db } from '../lib/firebase';
 import { collection, query, orderBy, limit, getDocs } from 'firebase/firestore';
 
-export function Dashboard({ stats, onDialectChange, onAIProviderChange, onLectureSelect }: { 
+export function Dashboard({ stats, onDialectChange, onLectureSelect }: { 
   stats: UserStats, 
   onDialectChange: (d: Dialect) => void, 
-  onAIProviderChange: (p: AIProvider) => void,
   onLectureSelect?: (l: any) => void 
 }) {
   const [realLeaderboard, setRealLeaderboard] = useState<any[]>([]);
@@ -38,12 +37,6 @@ export function Dashboard({ stats, onDialectChange, onAIProviderChange, onLectur
     { id: 'Kurdish', label: 'الكردية' },
     { id: 'Fusha', label: 'الفصحى' },
     { id: 'English', label: 'English' },
-  ];
-
-  const providers: { id: AIProvider; label: string; icon: string }[] = [
-    { id: 'gemini', label: 'Gemini (Google)', icon: '✨' },
-    { id: 'mistral', label: 'Mistral (French)', icon: '🌬️' },
-    { id: 'groq', label: 'Groq (Fast)', icon: '⚡' },
   ];
 
   const pastLectures = Array.isArray(stats.pastLectures) ? stats.pastLectures : [];

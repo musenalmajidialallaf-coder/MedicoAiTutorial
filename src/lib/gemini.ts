@@ -1,38 +1,6 @@
-import { GoogleGenAI, Type } from "@google/genai";
-import { UserStats, PastLecture } from "../store/useUserStore";
-import Groq from "groq-sdk";
-import { Mistral } from "@mistralai/mistralai";
+import { UserStats } from "../store/useUserStore";
 
-// Reverting to the correct API pattern for @google/genai version 1.29.0
-// Supporting multiple ways the key could be injected during build
-const GEMINI_KEY = (
-  process.env.GEMINI_API_KEY || 
-  (import.meta as any).env?.VITE_GEMINI_API_KEY || 
-  ''
-).replace(/['"]/g, '');
-
-const MISTRAL_KEY = (
-  process.env.MISTRAL_API_KEY || 
-  (import.meta as any).env?.VITE_MISTRAL_API_KEY || 
-  ''
-).replace(/['"]/g, '');
-
-const GROQ_KEY = (
-  process.env.GROQ_API_KEY || 
-  (import.meta as any).env?.VITE_GROQ_API_KEY || 
-  ''
-).replace(/['"]/g, '');
-
-if (!GEMINI_KEY || GEMINI_KEY === 'undefined') {
-  console.error("CRITICAL: GEMINI_API_KEY is missing or invalid.");
-}
-
-export const ai = new GoogleGenAI({ apiKey: GEMINI_KEY });
-
-export const mistral = MISTRAL_KEY ? new Mistral({ apiKey: MISTRAL_KEY }) : null;
-export const groq = GROQ_KEY ? new Groq({ apiKey: GROQ_KEY, dangerouslyAllowBrowser: true }) : null;
-
-const STABLE_MODEL = "gemini-3.1-pro-preview";
+// Vision and Chat models are now managed on the server side
 
 export interface ExplanationBlock {
   heading: string;
@@ -61,9 +29,6 @@ export interface LectureAnalysis {
 }
 
 export async function analyzeLecture(base64Data: string, mimeType: string, stats: UserStats): Promise<LectureAnalysis> {
-  // Safety guard - increasing limit to 10MB for more complex PDFs/Lectures
-  const truncatedData = base64Data.length > 10000000 ? base64Data.slice(0, 10000000) : base64Data;
-  
   const lastLecture = stats.pastLectures.length > 0 ? stats.pastLectures[0] : null;
   
   const dialectMap: Record<string, string> = {
@@ -78,78 +43,43 @@ export async function analyzeLecture(base64Data: string, mimeType: string, stats
     'Fusha': 'اللغة العربية الفصحى'
   };
 
-  const prompt = `أنت "عضيدك الطبي" (Your Medical Buddy) - طالب نابغة وخبير في تبسيط المعقد، وشرحك يُعتبر "المرجع الذهبي" لزملائك.
+  const prompt = `أنت "عضيدك الطبي" (Your Medical Buddy) - طالب نابغة وخبير في تبسيط المعقد، وشرحك يُعتبر "المرجع الذهبي" لزملائك. تعمل الآن بمحرك Groq الفائق السرعة.
 
 هذا التحدي: حول ملف المحاضرة الملحق إلى "شرح موسوعي شامل" (Encyclopedic Explanation) بلهجة (${dialectMap[stats.dialect] || 'اللهجة العراقية'}). 
 
-المبادئ الصارمة (Strict Guidelines - إياك والتهاون):
-1. **استقصاء المعلومات (Exhaustive Extraction)**: ممنوع، بل محرم عليك الاختصار. أريدك أن تمر على كل سطر، كل معلومة، وكل نقطة في ملف المحاضرة وتشرحها. إذا كان هناك جدول، اشرحه بالتفصيل. إذا كانت هناك قائمة، اشرح كل بند فيها بفقرة كاملة.
-2. **لغة الصديق البسيط (Simple but Professional)**: اشرح كأنك جالس مع صديقك المفضل، بس أنت "موسوعة متحركة". استخدم الكلمات البسيطة والحكايا والتشبيهات، لكن حافظ على الدقة العلمية والمصطلحات الإنجليزية الأساسية.
-3. **التفصيل الممل (The Detail Monster)**: الهدف هو ألا يحتاج الطالب للعودة لملف المحاضرة الأصلي أبداً. أريد الشرح يكون "أدسم" وأكثر تفصيلاً من المحاضرة نفسها.
-4. **Physiology Base**: قبل الدخول في أي مرض، "يجب" شرح فسيولوجيا العضو المشروح في حالته الطبيعية بفقرات طويلة (Normal State) لتوضيح الفرق.
-5. **العمق الروحاني**: اذكر آيات قرآنية مناسبة ترتبط بدقة الخلق لزيادة الطمأنينة.
-6. **لا تنهي الشرح بسرعة**: أريد 'explanationBlocks' عديدة وحافلة بالمعلومات (Heavy Content Blocks). كل بلوك يجب أن يكون وجبة دسمة من العلم.
+المبادئ الصارمة (Strict Guidelines):
+1. **استقصاء المعلومات (Exhaustive Extraction)**: أريدك أن تمر على كل سطر، كل معلومة، وكل نقطة في ملف المحاضرة وتشرحها بالتفصيل الممل.
+2. **لغة الصديق البسيط (Simple but Professional)**: اشرح كأنك جالس مع صديقك المفضل، بس أنت "موسوعة متحركة". استخدم الكلمات البسيطة والحكايا والتشبيهات.
+3. **التفصيل الممل (The Detail Monster)**: الهدف هو ألا يحتاج الطالب للعودة لملف المحاضرة الأصلي أبداً.
+4. **Physiology Base**: قبل الدخول في أي مرض، "يجب" شرح فسيولوجيا العضو المشروح في حالته الطبيعية بفقرات طويلة.
 
-نظام البطاقات (استخدمها بكثافة):
+نظام البطاقات:
 - 'academic': للفسلجة الكاملة، التشريح الدقيق، والآلية الحيوية.
-- 'clinical': للفحص السريري، الأعراض بالتفصيل، التحاليل وقراءتها، والعلاجات (Brand names & Generic names).
+- 'clinical': للفحص السريري، الأعراض بالتفصيل، التحاليل وقراءتها، والعلاجات.
 - 'red_flag': للتحذيرات والمخاطر الطبية.
 
-مراجعة المحاضرة السابقة (للسياق):
+مراجعة المحاضرة السابقة:
 ${lastLecture ? `العنوان: ${lastLecture.title}\nالملخص: ${lastLecture.summary}` : 'لا توجد مراجعة.'}
 
-أجب بصيغة JSON حصراً. تأكد أن استجابتك "عملاقة" من حيث المعلومات وليست مجرد كلمات عامة.`;
+أجب بصيغة JSON حصراً، ويجب أن يحتوي الـ JSON على الخصائص التالية:
+- title: عنوان المحاضرة
+- previousReview: مراجعة للمحاضرة السابقة (5 أسطر)
+- explanationBlocks: قائمة بالعناوين والشرح والنوع
+- glossary: قاموس مصطلحات
+- summaryForFuture: ملخص للمستقبل (5 أسطر)`;
 
-  const response = await ai.models.generateContent({
-    model: STABLE_MODEL,
-    contents: [
-      {
-        role: "user",
-        parts: [
-          { inlineData: { data: truncatedData, mimeType } },
-          { text: prompt }
-        ]
-      }
-    ],
-    config: {
-      responseMimeType: "application/json",
-      responseSchema: {
-        type: Type.OBJECT,
-        properties: {
-          title: { type: Type.STRING },
-          previousReview: { type: Type.STRING },
-          explanationBlocks: {
-            type: Type.ARRAY,
-            items: {
-              type: Type.OBJECT,
-              properties: {
-                heading: { type: Type.STRING },
-                content: { type: Type.STRING },
-                type: { type: Type.STRING, enum: ['academic', 'clinical', 'red_flag'] }
-              },
-              required: ["heading", "content", "type"]
-            }
-          },
-          glossary: { 
-            type: Type.ARRAY,
-            items: {
-              type: Type.OBJECT,
-              properties: {
-                term: { type: Type.STRING },
-                definition: { type: Type.STRING }
-              },
-              required: ["term", "definition"]
-            }
-          },
-          summaryForFuture: { type: Type.STRING }
-        },
-        required: ["title", "previousReview", "explanationBlocks", "glossary", "summaryForFuture"]
-      }
-    }
+  const response = await fetch('/api/analyze', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ prompt, base64Data, mimeType })
   });
 
-  if (!response.text) throw new Error("Failed to generate analysis");
-  return JSON.parse(response.text);
+  if (!response.ok) {
+    const err = await response.json();
+    throw new Error(err.error || "فشل تحليل المحاضرة");
+  }
+
+  return response.json();
 }
 
 export async function askQuestion(question: string, currentExplanation: string, stats: UserStats): Promise<string> {
@@ -158,11 +88,8 @@ export async function askQuestion(question: string, currentExplanation: string, 
   const prompt = `أنت "Professor Novix"، خبير التعليم الطبي والمحاكي السريري للأوسكي (OSCE).
 
 عندما يبدأ الطالب بالتحدث معك، تأكد من فهم مراده (هل يطرح سؤالاً عاماً أم يريد بدء محاكاة حالة).
-- إذا طلب "محاكاة حالة" أو "AI Patient Simulator": تقمص شخصية مريض (يفضل بلهجة عراقية طبية واقعية، مثلاً: "دكتور صدري يوجعني"). 
-  * لا تعطِ التشخيص أو كل المعلومات مرة واحدة. انتظر الطالب ليسألك وجاوب كعامي يعاني من أعراض. 
-  * إذا سألك الطالب سؤالاً طبياً احترافياً، أجب كونه مريضاً لا يفهم المصطلحات.
-  * التقييم النهائي: بعد انتهاء المقابلة أو تشخيص الطالب للحالة، اطبع Checklist كامل للتقييم، مع النقاط التي نسيها (الـ Smoking history وغيرها) وتقييم من 10.
-- إذا كان سؤالاً طبياً عن المحاضرة: استخدم المصطلحات الطبية الإنجليزية وركز على بروتوكولات المستشفيات العراقية، وكن بروفيسوراً حازماً تعليمياً ومشجعاً في نفس الوقت، واشرح باللهجة (${stats.dialect || 'العراقية'}).
+- إذا طلب "محاكاة حالة" أو "AI Patient Simulator": تقمص شخصية مريض (يفضل بلهجة عراقية طبية واقعية). 
+- إذا كان سؤالاً طبياً عن المحاضرة: استخدم المصطلحات الطبية الإنجليزية واشرح باللهجة (${stats.dialect || 'العراقية'}).
 
 Current Lecture Explanation:
 ${currentExplanation}
@@ -170,84 +97,59 @@ ${currentExplanation}
 Past Lectures Summaries:
 ${pastLecturesContext || 'None'}
 
-Student's Question: ${question}
-
-Instructions:
-1. Respond purely in character as Professor Novix (or the patient if in simulation).
-2. Answer based on the current lecture or simulation context.
-3. Keep the interaction immersive.`;
+Student's Question: ${question}`;
 
   try {
-    if (!groq) throw new Error("Groq client not initialized");
+    const response = await fetch('/api/ask', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ prompt })
+    });
 
-    const response = await groq.chat.completions.create({
-      model: "llama-3.3-70b-versatile",
-      messages: [{ role: 'user', content: prompt }],
-    });
-    return response.choices[0]?.message?.content || "عذراً، محرك Groq واجه مشكلة.";
+    if (!response.ok) {
+      const err = await response.json();
+      throw new Error(err.error || "فشل الحصول على إجابة");
+    }
+
+    const data = await response.json();
+    return data.content || "عذراً، محرك الذكاء واجه مشكلة.";
   } catch (error) {
-    console.error(`AI Provider (Groq) error:`, error);
-    // Silent fallback to Gemini if Groq fails to maintain availability
-    const response = await ai.models.generateContent({
-      model: STABLE_MODEL,
-      contents: prompt,
-    });
-    return response.text || "عذراً، حدث خطأ تقني في محرك الذكاء.";
+    console.error(`Ask Question error:`, error);
+    return `عذراً، حدث خطأ تقني في الاتصال بالخادم.`;
   }
 }
 
 export async function generateQuiz(explanation: string): Promise<MCQ[]> {
   const prompt = `أنت بروفيسور طبي دقيق ومتمرس في وضع أسئلة الزمالات (Board Exams).
-مهمتك: إنشاء 10 أسئلة خيارات متعددة (MCQs) بنظام (كيس سيناريو - Clinical Case Scenarios) بناءً على الشرح الطبي المرفق.
-
-مستوى الصعوبة المطلوب: متعدد الصعوبة، يبدأ من الصعب إلى شديد الصعوبة (Hard to Extremely Hard).
-- يجب أن يكون العدد بالضبط 10 أسئلة.
-- تجنب الأسئلة المباشرة تماماً (مثل: ما هو سبب كذا...).
-- استخدم سيناريوهات سريرية معقدة تتطلب التفكير، دمج المعلومات، والتحليل السريري للوصول للتشخيص أو الخطوة التالية الأنسب (Next Best Step).
-- يجب أن تكون الحلول الأخرى (Distractors) منطقية جداً ومربكة للطالب غير المتمكن.
-
-التعليمات للغات:
-1. السؤال (Clinical Case) والخيارات (Options) يجب أن تكون باللغة الإنجليزية حصراً.
-2. الشرح (Explanation) والتوضيح يجب أن يكون باللغة العربية حصراً.
-
-الشرح أو المحتوى الطبي:
-${explanation}
+إنشاء 10 أسئلة خيارات متعددة (MCQs) بنظام Clinical Case Scenarios بناءً على الشرح الطبي المرفق.
 
 التعليمات للصيغة (JSON):
-أجب بصيغة JSON حصراً، وتحتوي على قائمة من الأشياء (Object) بالخصائص التالية:
-- question: (Case in English)
+أجب بصيغة JSON حصراً، وتحتوي على قائمة من الكائنات بخصائص:
+- question: (English Case)
 - options: (4 options in English)
 - correctAnswerIndex: (0-3)
-- explanation: (Deep detail in Arabic)`;
+- explanation: (Arabic Detail)
+
+المحتوى الطبي:
+${explanation}`;
 
   try {
-    if (!groq) throw new Error("Groq client not initialized");
-
-    const response = await groq.chat.completions.create({
-      model: "llama-3.3-70b-versatile",
-      messages: [{ role: 'user', content: prompt }],
-      response_format: { type: "json_object" }
+    const response = await fetch('/api/quiz', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ prompt })
     });
-    
-    const content = response.choices[0]?.message?.content;
-    if (!content) throw new Error("Empty response from Groq");
-    
-    const parsed = JSON.parse(content);
-    // Groq might return the array directly or inside a property
+
+    if (!response.ok) {
+      const err = await response.json();
+      throw new Error(err.error || "فشل إنشاء الاختبار");
+    }
+
+    const parsed = await response.json();
     const finalArray = Array.isArray(parsed) ? parsed : (parsed.quizzes || parsed.mcqs || parsed.questions || Object.values(parsed)[0]);
     return finalArray as MCQ[];
   } catch (error) {
-    console.error("Groq Quiz Generation error:", error);
-    // Fallback to Gemini
-    const response = await ai.models.generateContent({
-      model: STABLE_MODEL,
-      contents: prompt,
-      config: {
-        responseMimeType: "application/json",
-      }
-    });
-
-    if (!response.text) throw new Error("Failed to generate quiz");
-    return JSON.parse(response.text) as MCQ[];
+    console.error("Quiz Generation error:", error);
+    throw new Error("فشل إنشاء الاختبار.");
   }
 }
