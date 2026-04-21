@@ -1,28 +1,32 @@
 import { initializeApp } from 'firebase/app';
 import { getAuth, GoogleAuthProvider, signInWithPopup, signOut } from 'firebase/auth';
 import { getFirestore, getDocFromServer, doc } from 'firebase/firestore';
-import firebaseConfig from '../../firebase-applet-config.json';
+// Manual config for absolute reliability with custom domains
+const firebaseConfig = {
+  projectId: "ai-studio-applet-webapp-1d4ad",
+  appId: "1:199134510481:web:930360d61e64f784e32e30",
+  apiKey: "AIzaSyAcXiHnfx7hLQZtc6cvy27KrgE8YgaIDss",
+  authDomain: "ai-studio-applet-webapp-1d4ad.firebaseapp.com",
+  firestoreDatabaseId: "ai-studio-d69f661d-81ae-47e4-9e62-b0ab245d7dc3",
+  storageBucket: "ai-studio-applet-webapp-1d4ad.firebasestorage.app",
+  messagingSenderId: "199134510481"
+};
 
 const app = initializeApp(firebaseConfig);
 export const auth = getAuth(app);
 export const db = getFirestore(app, firebaseConfig.firestoreDatabaseId);
 export const googleProvider = new GoogleAuthProvider();
 
-// Improved connection testing
+// Improved connection testing with clearer logs
 async function testConnection() {
   try {
-    // Attempt a read on a path that likely doesn't exist to test connectivity
-    // Permission denied is a SUCCESSFUL connect (rules are working)
-    // "Client is offline" or "Failed to get document" is a FAIL.
     await getDocFromServer(doc(db, 'system', 'ping'));
-    console.log("Firebase Connectivity: Verified");
+    console.log("Firebase Connectivity: Verified (Project: ai-studio-applet-webapp-1d4ad)");
   } catch (error: any) {
     if (error.code === 'permission-denied') {
-      console.log("Firebase Connectivity: Verified (Access restricted by rules as expected)");
-    } else if (error.message && error.message.includes('the client is offline')) {
-      console.warn("Firestore Connectivity: Client appears to be offline. This might be a temporary network issue or invalid configuration.");
+      console.log("Firebase Connectivity: Verified (Access restricted by rules - OK)");
     } else {
-      console.debug("Firestore connectivity check info:", error.message);
+      console.warn("Firestore Connectivity Check:", error.message);
     }
   }
 }

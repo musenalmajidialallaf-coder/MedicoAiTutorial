@@ -1,7 +1,11 @@
 import { GoogleGenAI, Type } from "@google/genai";
 import { UserStats, PastLecture } from "../store/useUserStore";
 
-const ai = new GoogleGenAI({ apiKey: process.env.GEMINI_API_KEY });
+// Reverting to the correct API pattern for @google/genai version 1.29.0
+const GEMINI_KEY = process.env.GEMINI_API_KEY || '';
+const ai = new GoogleGenAI({ apiKey: GEMINI_KEY });
+
+const STABLE_MODEL = "gemini-2.0-flash";
 
 export interface ExplanationBlock {
   heading: string;
@@ -69,7 +73,7 @@ ${lastLecture ? `العنوان: ${lastLecture.title}\nالملخص: ${lastLectu
 Return the response strictly as a JSON object.`;
 
   const response = await ai.models.generateContent({
-    model: "gemini-3-flash-preview",
+    model: STABLE_MODEL,
     contents: [
       {
         role: "user",
@@ -146,7 +150,7 @@ Instructions:
 3. Keep the interaction immersive.`;
 
   const response = await ai.models.generateContent({
-    model: "gemini-3-flash-preview", // Flash handles this fast and well.
+    model: STABLE_MODEL,
     contents: prompt,
   });
 
@@ -177,7 +181,7 @@ ${explanation}
 - أضف explanation (شرح مفصل جداً باللغة العربية يشرح لماذا الجواب الصحيح هو الأصح، ولماذا تعتبر الخيارات الأخرى خاطئة في سياق هذه الحالة السريرية). -> ARABIC ONLY`;
 
   const response = await ai.models.generateContent({
-    model: "gemini-3-flash-preview",
+    model: STABLE_MODEL,
     contents: prompt,
     config: {
       responseMimeType: "application/json",
