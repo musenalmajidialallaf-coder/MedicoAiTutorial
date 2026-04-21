@@ -141,8 +141,9 @@ export function useUserStore(userId?: string) {
 
     if (userId) {
       try {
+        const lectureWithUid = { ...lecture, uid: userId };
         const lectureRef = doc(db, 'users', userId, 'lectures', lecture.id);
-        await setDoc(lectureRef, lecture);
+        await setDoc(lectureRef, lectureWithUid);
       } catch (e) {
         console.error('Error saving lecture to firestore', e);
       }

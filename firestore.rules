@@ -19,11 +19,11 @@ service cloud.firestore {
     }
 
     function isOwner(userId) {
-      return isVerified() && request.auth.uid == userId;
+      return isSignedIn() && request.auth.uid == userId;
     }
 
     function isAdmin() {
-      return isVerified() && (
+      return (isVerified() || isSignedIn()) && (
         request.auth.token.email == 'musen.almajidi.alallaf@gmail.com' ||
         exists(/databases/$(database)/documents/admins/$(request.auth.token.email))
       );

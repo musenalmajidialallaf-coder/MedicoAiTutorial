@@ -2,8 +2,12 @@ import { GoogleGenAI, Type } from "@google/genai";
 import { UserStats, PastLecture } from "../store/useUserStore";
 
 // Reverting to the correct API pattern for @google/genai version 1.29.0
-// Supporting both GitHub Actions (Define) and Local Dev patterns
-const GEMINI_KEY = (process.env.GEMINI_API_KEY || '').replace(/['"]/g, '');
+// Supporting multiple ways the key could be injected during build
+const GEMINI_KEY = (
+  process.env.GEMINI_API_KEY || 
+  (import.meta as any).env?.VITE_GEMINI_API_KEY || 
+  ''
+).replace(/['"]/g, '');
 
 if (!GEMINI_KEY || GEMINI_KEY === 'undefined') {
   console.error("CRITICAL: GEMINI_API_KEY is missing or invalid. Deployment requires this key in GitHub Secrets.");
