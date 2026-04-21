@@ -2,13 +2,16 @@ import { GoogleGenAI, Type } from "@google/genai";
 import { UserStats, PastLecture } from "../store/useUserStore";
 
 // Reverting to the correct API pattern for @google/genai version 1.29.0
-const GEMINI_KEY = process.env.GEMINI_API_KEY || '';
-if (!GEMINI_KEY) {
-  console.error("CRITICAL: GEMINI_API_KEY is missing. AI features will not work.");
+// Supporting both GitHub Actions (Define) and Local Dev patterns
+const GEMINI_KEY = (process.env.GEMINI_API_KEY || '').replace(/['"]/g, '');
+
+if (!GEMINI_KEY || GEMINI_KEY === 'undefined') {
+  console.error("CRITICAL: GEMINI_API_KEY is missing or invalid. Deployment requires this key in GitHub Secrets.");
 }
+
 const ai = new GoogleGenAI({ apiKey: GEMINI_KEY });
 
-const STABLE_MODEL = "gemini-2.0-flash";
+const STABLE_MODEL = "gemini-3-flash-preview";
 
 export interface ExplanationBlock {
   heading: string;

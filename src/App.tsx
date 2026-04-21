@@ -243,8 +243,11 @@ export default function App() {
       console.error("Upload process error:", error);
       const errorMessage = error?.message || '';
       
-      if (!process.env.GEMINI_API_KEY) {
-        alert('حدث خطأ تقني (مفتاح الـ API مفقود). يرجى التأكد من إضافة GEMINI_API_KEY في إعدادات GitHub Secrets.');
+      const apiKey = process.env.GEMINI_API_KEY;
+      const isKeyMissing = !apiKey || apiKey === 'undefined' || apiKey === '';
+      
+      if (isKeyMissing) {
+        alert('حدث خطأ تقني (مفتاح الـ API مفقود أو غير معرّف بشكل صحيح). يرجى التأكد من إضافة مفتاح GEMINI_API_KEY في GitHub Secrets وإعادة تشغيل الـ Action.');
         navigateTo('idle', true);
         return;
       }
