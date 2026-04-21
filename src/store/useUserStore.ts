@@ -28,7 +28,7 @@ const DEFAULT_STATS: UserStats = {
   dialect: 'Iraqi',
   subscription: 'free',
   freeUploadsUsed: 0,
-  aiProvider: 'gemini',
+  aiProvider: 'groq',
 };
 
 export function useUserStore(userId?: string) {

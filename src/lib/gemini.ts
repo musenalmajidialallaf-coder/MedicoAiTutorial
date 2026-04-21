@@ -178,33 +178,21 @@ Instructions:
 3. Keep the interaction immersive.`;
 
   try {
-    if (stats.aiProvider === 'mistral' && mistral) {
-      const response = await mistral.chat.complete({
-        model: "mistral-large-latest",
-        messages: [{ role: 'user', content: prompt }],
-      });
-      return typeof response.choices?.[0]?.message?.content === 'string' 
-        ? response.choices[0].message.content 
-        : "عذراً، محرك Mistral واجه مشكلة.";
-    }
+    if (!groq) throw new Error("Groq client not initialized");
 
-    if (stats.aiProvider === 'groq' && groq) {
-      const response = await groq.chat.completions.create({
-        model: "llama-3.3-70b-versatile",
-        messages: [{ role: 'user', content: prompt }],
-      });
-      return response.choices[0]?.message?.content || "عذراً، محرك Groq واجه مشكلة.";
-    }
-
-    // Default to Gemini
+    const response = await groq.chat.completions.create({
+      model: "llama-3.3-70b-versatile",
+      messages: [{ role: 'user', content: prompt }],
+    });
+    return response.choices[0]?.message?.content || "عذراً، محرك Groq واجه مشكلة.";
+  } catch (error) {
+    console.error(`AI Provider (Groq) error:`, error);
+    // Silent fallback to Gemini if Groq fails to maintain availability
     const response = await ai.models.generateContent({
       model: STABLE_MODEL,
       contents: prompt,
     });
-    return response.text || "عذراً، ما كدرت اجاوب على هذا السؤال حالياً.";
-  } catch (error) {
-    console.error(`AI Provider (${stats.aiProvider}) error:`, error);
-    return `عذراً، المحرك ${stats.aiProvider} واجه خطأ تقني.`;
+    return response.text || "عذراً، حدث خطأ تقني في محرك الذكاء.";
   }
 }
 
@@ -226,35 +214,40 @@ export async function generateQuiz(explanation: string): Promise<MCQ[]> {
 ${explanation}
 
 التعليمات للصيغة (JSON):
-- صغ السؤال (question) كحالة سريرية (Clinical Case). -> ENGLISH ONLY
-- لكل سؤال أضف 4 خيارات (options). -> ENGLISH ONLY
-- حدد الـ correctAnswerIndex (من 0 إلى 3).
-- أضف explanation (شرح مفصل جداً باللغة العربية يشرح لماذا الجواب الصحيح هو الأصح، ولماذا تعتبر الخيارات الأخرى خاطئة في سياق هذه الحالة السريرية). -> ARABIC ONLY`;
+أجب بصيغة JSON حصراً، وتحتوي على قائمة من الأشياء (Object) بالخصائص التالية:
+- question: (Case in English)
+- options: (4 options in English)
+- correctAnswerIndex: (0-3)
+- explanation: (Deep detail in Arabic)`;
 
-  const response = await ai.models.generateContent({
-    model: STABLE_MODEL,
-    contents: prompt,
-    config: {
-      responseMimeType: "application/json",
-      responseSchema: {
-        type: Type.ARRAY,
-        items: {
-          type: Type.OBJECT,
-          properties: {
-            question: { type: Type.STRING },
-            options: {
-              type: Type.ARRAY,
-              items: { type: Type.STRING }
-            },
-            correctAnswerIndex: { type: Type.INTEGER },
-            explanation: { type: Type.STRING }
-          },
-          required: ["question", "options", "correctAnswerIndex", "explanation"]
-        }
+  try {
+    if (!groq) throw new Error("Groq client not initialized");
+
+    const response = await groq.chat.completions.create({
+      model: "llama-3.3-70b-versatile",
+      messages: [{ role: 'user', content: prompt }],
+      response_format: { type: "json_object" }
+    });
+    
+    const content = response.choices[0]?.message?.content;
+    if (!content) throw new Error("Empty response from Groq");
+    
+    const parsed = JSON.parse(content);
+    // Groq might return the array directly or inside a property
+    const finalArray = Array.isArray(parsed) ? parsed : (parsed.quizzes || parsed.mcqs || parsed.questions || Object.values(parsed)[0]);
+    return finalArray as MCQ[];
+  } catch (error) {
+    console.error("Groq Quiz Generation error:", error);
+    // Fallback to Gemini
+    const response = await ai.models.generateContent({
+      model: STABLE_MODEL,
+      contents: prompt,
+      config: {
+        responseMimeType: "application/json",
       }
-    }
-  });
+    });
 
-  if (!response.text) throw new Error("Failed to generate quiz");
-  return JSON.parse(response.text) as MCQ[];
+    if (!response.text) throw new Error("Failed to generate quiz");
+    return JSON.parse(response.text) as MCQ[];
+  }
 }
