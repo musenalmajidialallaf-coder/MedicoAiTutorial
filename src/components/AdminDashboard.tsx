@@ -59,15 +59,41 @@ export function AdminDashboard() {
     }
   };
 
+  const handleDeleteUser = async (user: any) => {
+    if (!confirm(`هل أنت متأكد من حذف المستخدم ${user.displayName || user.email}؟ لا يمكن التراجع عن هذه الخطوة وسيتم مسح كافة محاضراته.`)) return;
+    try {
+      console.log("Attempting to delete user:", user.id);
+      
+      // Delete user profile
+      await deleteDoc(doc(db, 'users', user.id));
+      console.log("Deleted from 'users' collection");
+
+      // Delete public profile
+      await deleteDoc(doc(db, 'public_profiles', user.id));
+      console.log("Deleted from 'public_profiles' collection");
+      
+      fetchData();
+      alert('تم حذف المستخدم بنجاح');
+    } catch (error: any) {
+      console.error('Error deleting user:', error);
+      alert(`حدث خطأ أثناء حذف المستخدم: ${error.message || 'خطأ غير معروف'}`);
+    }
+  };
+
   if (loading) {
-    return <div className="p-8 text-center">جاري تحميل لوحة التحكم...</div>;
+    return (
+      <div className="flex flex-col items-center justify-center p-20 space-y-4">
+        <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-purple-600"></div>
+        <p className="text-slate-600 dark:text-slate-400 font-bold">جاري تحميل لوحة التحكم...</p>
+      </div>
+    );
   }
 
   const paidUsers = users.filter(u => u.subscription === 'paid');
   const freeUsers = users.filter(u => u.subscription !== 'paid');
 
   return (
-    <div className="max-w-6xl mx-auto animate-in fade-in duration-500 mt-8">
+    <div className="max-w-6xl mx-auto animate-in fade-in duration-500 mt-8 mb-20">
       <div className="flex items-center justify-between mb-8">
         <div className="flex items-center space-x-3 space-x-reverse">
           <div className="bg-purple-100 dark:bg-purple-900/30 p-3 rounded-xl text-purple-600 dark:text-purple-400">
@@ -77,49 +103,88 @@ export function AdminDashboard() {
         </div>
         <button 
           onClick={() => window.dispatchEvent(new CustomEvent('go-home'))}
-          className="px-4 py-2 bg-slate-200 hover:bg-slate-300 dark:bg-slate-800 dark:hover:bg-slate-700 text-slate-700 dark:text-slate-200 rounded-xl font-bold transition-colors"
+          className="px-6 py-2 bg-slate-200 hover:bg-slate-300 dark:bg-slate-800 dark:hover:bg-slate-700 text-slate-700 dark:text-slate-200 rounded-xl font-bold transition-all shadow-sm"
         >
           العودة للتطبيق
         </button>
       </div>
 
-      <div className="grid grid-cols-1 md:grid-cols-2 gap-6 mb-8">
-        <div className="bg-white dark:bg-slate-900 p-6 rounded-3xl shadow-sm border border-slate-100 dark:border-slate-800">
-          <div className="flex items-center justify-between mb-4">
-            <h3 className="text-xl font-bold text-slate-800 dark:text-slate-100">المشتركين (المدفوع)</h3>
-            <div className="bg-amber-100 text-amber-600 px-3 py-1 rounded-full font-bold">{paidUsers.length}</div>
+      <div className="grid grid-cols-1 lg:grid-cols-2 gap-8 mb-12">
+        {/* Paid Users */}
+        <div className="bg-white dark:bg-slate-900 p-8 rounded-3xl shadow-sm border border-slate-100 dark:border-slate-800 relative overflow-hidden">
+          <div className="absolute top-0 right-0 w-32 h-32 bg-amber-500/5 -rotate-45 translate-x-10 -translate-y-10"></div>
+          <div className="flex items-center justify-between mb-6 relative">
+            <h3 className="text-xl font-bold text-slate-800 dark:text-slate-100 flex items-center gap-2">
+              <span className="w-2 h-2 bg-amber-500 rounded-full"></span>
+              المشتركين (المدفوع)
+            </h3>
+            <div className="bg-amber-100 text-amber-600 px-4 py-1 rounded-full font-bold shadow-inner">{paidUsers.length}</div>
           </div>
-          <div className="space-y-3 max-h-60 overflow-y-auto pr-2 custom-scrollbar">
+          <div className="space-y-4 max-h-[400px] overflow-y-auto pr-2 custom-scrollbar">
             {paidUsers.map(u => (
-              <div key={u.id} className="p-3 bg-slate-50 dark:bg-slate-800/50 rounded-xl flex justify-between items-center">
-                <div>
-                  <p className="font-bold text-sm text-slate-800 dark:text-slate-200">{u.displayName || 'بدون اسم'}</p>
-                  <p className="text-xs text-slate-500">{u.email}</p>
+              <div key={u.id} className="p-4 bg-slate-50 dark:bg-slate-800 rounded-2xl flex justify-between items-center group border border-transparent hover:border-amber-100 transition-all">
+                <div className="flex-1">
+                  <p className="font-bold text-slate-800 dark:text-slate-100">{u.displayName || 'بدون اسم'}</p>
+                  <p className="text-xs text-slate-500 font-mono">{u.email}</p>
+                  <p className="text-[10px] mt-1 text-amber-600 font-bold bg-amber-50 dark:bg-amber-900/30 px-2 py-0.5 rounded-full inline-block">
+                    عدد المحاضرات: {u.freeUploadsUsed || 0}
+                  </p>
                 </div>
+                <button 
+                  onClick={() => handleDeleteUser(u)}
+                  className="p-2 text-slate-300 hover:text-red-500 transition-colors"
+                  title="حذف المستخدم"
+                >
+                  <Trash2 className="w-5 h-5" />
+                </button>
               </div>
             ))}
-            {paidUsers.length === 0 && <p className="text-slate-500 text-sm">لا يوجد مشتركين بعد.</p>}
+            {paidUsers.length === 0 && (
+              <div className="text-center py-10 opacity-50">
+                <Trash2 className="w-12 h-12 mx-auto mb-2 opacity-10" />
+                <p className="text-slate-500 text-sm">لا يوجد مشتركين بعد.</p>
+              </div>
+            )}
           </div>
         </div>
 
-        <div className="bg-white dark:bg-slate-900 p-6 rounded-3xl shadow-sm border border-slate-100 dark:border-slate-800">
-          <div className="flex items-center justify-between mb-4">
-            <h3 className="text-xl font-bold text-slate-800 dark:text-slate-100">المستخدمين (المجاني)</h3>
-            <div className="bg-teal-100 text-teal-600 px-3 py-1 rounded-full font-bold">{freeUsers.length}</div>
+        {/* Free Users */}
+        <div className="bg-white dark:bg-slate-900 p-8 rounded-3xl shadow-sm border border-slate-100 dark:border-slate-800 relative overflow-hidden">
+          <div className="absolute top-0 right-0 w-32 h-32 bg-teal-500/5 -rotate-45 translate-x-10 -translate-y-10"></div>
+          <div className="flex items-center justify-between mb-6 relative">
+            <h3 className="text-xl font-bold text-slate-800 dark:text-slate-100 flex items-center gap-2">
+              <span className="w-2 h-2 bg-teal-500 rounded-full"></span>
+              المستخدمين (المجاني)
+            </h3>
+            <div className="bg-teal-100 text-teal-600 px-4 py-1 rounded-full font-bold shadow-inner">{freeUsers.length}</div>
           </div>
-          <div className="space-y-3 max-h-60 overflow-y-auto pr-2 custom-scrollbar">
+          <div className="space-y-4 max-h-[400px] overflow-y-auto pr-2 custom-scrollbar">
             {freeUsers.map(u => (
-              <div key={u.id} className="p-3 bg-slate-50 dark:bg-slate-800/50 rounded-xl flex justify-between items-center">
-                <div>
-                  <p className="font-bold text-sm text-slate-800 dark:text-slate-200">{u.displayName || 'بدون اسم'}</p>
-                  <p className="text-xs text-slate-500">{u.email}</p>
+              <div key={u.id} className="p-4 bg-slate-50 dark:bg-slate-800 rounded-2xl flex justify-between items-center group border border-transparent hover:border-teal-100 transition-all">
+                <div className="flex-1">
+                  <p className="font-bold text-slate-800 dark:text-slate-100">{u.displayName || 'بدون اسم'}</p>
+                  <p className="text-xs text-slate-500 font-mono">{u.email}</p>
+                  <div className="flex items-center gap-2 mt-1">
+                    <p className="text-[10px] text-teal-600 font-bold bg-teal-50 dark:bg-teal-900/30 px-2 py-0.5 rounded-full inline-block">
+                      عدد المحاضرات: {u.freeUploadsUsed || 0}
+                    </p>
+                  </div>
                 </div>
-                <div className="text-xs font-bold text-teal-600 bg-teal-100 px-2 py-1 rounded">
-                  {u.freeUploadsUsed || 0}/3
-                </div>
+                <button 
+                  onClick={() => handleDeleteUser(u)}
+                  className="p-2 text-slate-300 hover:text-red-500 transition-colors"
+                  title="حذف المستخدم"
+                >
+                  <Trash2 className="w-5 h-5" />
+                </button>
               </div>
             ))}
-            {freeUsers.length === 0 && <p className="text-slate-500 text-sm">لا يوجد مستخدمين مجانيين.</p>}
+            {freeUsers.length === 0 && (
+              <div className="text-center py-10 opacity-50">
+                <Trash2 className="w-12 h-12 mx-auto mb-2 opacity-10" />
+                <p className="text-slate-500 text-sm">لا يوجد مستخدمين مجانيين.</p>
+              </div>
+            )}
           </div>
         </div>
       </div>

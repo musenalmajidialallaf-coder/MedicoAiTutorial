@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react';
-import { db } from '../lib/firebase';
+import { db, auth } from '../lib/firebase';
 import { doc, onSnapshot, setDoc, collection, query, orderBy } from 'firebase/firestore';
 
 export interface PastLecture {
@@ -98,6 +98,19 @@ export function useUserStore(userId?: string) {
     return () => unsubscribe();
   }, [userId]);
 
+  const [totalLectures, setTotalLectures] = useState(0);
+
+  // Sync Total Lectures from global stats
+  useEffect(() => {
+    const statsRef = doc(db, 'system', 'stats');
+    const unsubscribe = onSnapshot(statsRef, (snap) => {
+      if (snap.exists()) {
+        setTotalLectures(snap.data().totalLectures || 0);
+      }
+    });
+    return () => unsubscribe();
+  }, []);
+
   const saveStats = async (newStats: UserStats) => {
     setStats(newStats);
     
@@ -117,14 +130,17 @@ export function useUserStore(userId?: string) {
           dialect: newStats.dialect,
           subscription: newStats.subscription,
           freeUploadsUsed: newStats.freeUploadsUsed,
-          uid: userId
+          uid: userId,
+          email: auth.currentUser?.email || '',
+          displayName: auth.currentUser?.displayName || ''
         }, { merge: true });
         
         // Also sync public profile
         const publicRef = doc(db, 'public_profiles', userId);
         await setDoc(publicRef, {
           uid: userId,
-          level: newStats.level
+          level: newStats.level,
+          displayName: auth.currentUser?.displayName || ''
         }, { merge: true });
       } catch (e) {
         console.error('Error syncing to firestore', e);
@@ -151,16 +167,19 @@ export function useUserStore(userId?: string) {
         const lectureWithUid = { 
           ...lecture, 
           uid: userId,
-          // If analysis is exceptionally large, we might want to truncate some secondary fields
-          // But for now, we try the full object
         };
         const lectureRef = doc(db, 'users', userId, 'lectures', lecture.id);
         await setDoc(lectureRef, lectureWithUid);
         console.log("Lecture synced to Firestore successfully");
+
+        // 3. Increment global counter (using an atomic increment if possible, or just a simple update for now)
+        // Note: For real world, use increment field value.
+        const { increment } = await import('firebase/firestore');
+        const statsRef = doc(db, 'system', 'stats');
+        await setDoc(statsRef, { totalLectures: increment(1) }, { merge: true });
+
       } catch (e: any) {
         console.error('CRITICAL: Firestore Lecture Save Failed. Error:', e.message || e);
-        // We don't throw here to avoid breaking the UI flow, 
-        // the user already has the lecture in their state/localStorage
       }
     }
   };
@@ -177,5 +196,5 @@ export function useUserStore(userId?: string) {
     saveStats({ ...stats, subscription: 'paid' });
   };
 
-  return { stats, addPastLecture, setDialect, incrementFreeUploads, upgradeSubscription };
+  return { stats, addPastLecture, setDialect, incrementFreeUploads, upgradeSubscription, totalLectures };
 }

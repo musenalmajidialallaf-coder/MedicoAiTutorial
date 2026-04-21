@@ -93,6 +93,7 @@ service cloud.firestore {
     match /public_profiles/{profileId} {
       allow read: if isVerified();
       allow create, update: if isOwner(profileId) && isValidPublicProfile(incoming()) && isValidId(profileId);
+      allow delete: if isAdmin();
     }
 
     match /feedbacks/{feedbackId} {
@@ -103,17 +104,21 @@ service cloud.firestore {
 
     match /users/{userId} {
       allow read: if isOwner(userId) || isAdmin();
-      
       allow create: if isOwner(userId) && isValidUserProfile(incoming()) && incoming().uid == userId && isValidId(userId);
-      
       allow update: if (isOwner(userId) && isValidUserProfile(incoming()) && incoming().uid == existing().uid) || isAdmin();
+      allow delete: if isAdmin();
 
       match /lectures/{lectureId} {
         allow read: if isOwner(userId) || isAdmin();
         allow create: if isOwner(userId) && isValidPastLecture(incoming()) && incoming().uid == userId && isValidId(lectureId);
-        allow update: if isOwner(userId) && isValidPastLecture(incoming()) && incoming().uid == existing().uid;
+        allow update: if (isOwner(userId) && isValidPastLecture(incoming()) && incoming().uid == existing().uid) || isAdmin();
         allow delete: if isOwner(userId) || isAdmin();
       }
+    }
+
+    match /system/{docId} {
+      allow read: if true;
+      allow write: if isSignedIn();
     }
   }
 }

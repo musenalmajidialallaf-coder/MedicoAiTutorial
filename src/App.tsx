@@ -18,7 +18,7 @@ type AppState = 'welcome' | 'idle' | 'analyzing' | 'explanation' | 'history' | '
 export default function App() {
   const [user, setUser] = useState<FirebaseUser | null>(null);
   const [isAdmin, setIsAdmin] = useState(false);
-  const { stats, addPastLecture, setDialect, incrementFreeUploads, upgradeSubscription } = useUserStore(user?.uid);
+  const { stats, addPastLecture, setDialect, incrementFreeUploads, upgradeSubscription, totalLectures } = useUserStore(user?.uid);
   
   const [isAuthReady, setIsAuthReady] = useState(false);
 
@@ -405,7 +405,8 @@ export default function App() {
       <main className="max-w-5xl mx-auto px-6 py-8">
         {appState === 'welcome' && (
           <WelcomeView 
-            onStartFree={() => navigateTo('idle')} 
+            onStartFree={() => navigateTo('idle', true)} 
+            totalLectures={totalLectures}
           />
         )}
 
