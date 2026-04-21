@@ -44,6 +44,9 @@ export interface LectureAnalysis {
 }
 
 export async function analyzeLecture(base64Data: string, mimeType: string, stats: UserStats): Promise<LectureAnalysis> {
+  // Safety guard for extremely large files that might cause timeouts or payload issues
+  const truncatedData = base64Data.length > 5000000 ? base64Data.slice(0, 5000000) : base64Data;
+  
   const lastLecture = stats.pastLectures.length > 0 ? stats.pastLectures[0] : null;
   
   const dialectMap: Record<string, string> = {
@@ -88,7 +91,7 @@ Return the response strictly as a JSON object.`;
       {
         role: "user",
         parts: [
-          { inlineData: { data: base64Data, mimeType } },
+          { inlineData: { data: truncatedData, mimeType } },
           { text: prompt }
         ]
       }

@@ -251,14 +251,6 @@ export function ExplanationView({ analysis }: ExplanationViewProps) {
 
               <div className="flex justify-between items-center mb-4">
                 <h2 className="text-3xl font-bold text-slate-800 dark:text-slate-100">{analysis.title || 'شرح المحاضرة'}</h2>
-                <button
-                  onClick={downloadPDF}
-                  className="flex items-center space-x-2 space-x-reverse bg-slate-100 hover:bg-slate-200 dark:bg-slate-800 dark:hover:bg-slate-700 text-slate-700 dark:text-slate-300 px-4 py-2 rounded-xl text-sm font-bold transition-all disabled:opacity-50 print:hidden"
-                  title="تحميل الملخص كملف PDF"
-                >
-                  <FileDown className="w-4 h-4" />
-                  <span>تحميل PDF</span>
-                </button>
               </div>
 
               <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-8">

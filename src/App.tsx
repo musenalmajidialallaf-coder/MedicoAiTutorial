@@ -228,14 +228,14 @@ export default function App() {
 
       setAnalysis(result);
       
-      // Save to past lectures
+      // Save to past lectures - Fire and forget to not block UI if firestore is slow
       addPastLecture({
         id: Date.now().toString(),
         title: result.title || file.name,
         summary: result.summaryForFuture,
         date: Date.now(),
         analysis: result // Save full analysis for later review
-      });
+      }).catch(e => console.error("Non-blocking save failed:", e));
 
       incrementFreeUploads();
       navigateTo('explanation', true);

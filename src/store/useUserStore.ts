@@ -133,19 +133,34 @@ export function useUserStore(userId?: string) {
   };
 
   const addPastLecture = async (lecture: PastLecture) => {
+    // 1. Always update local state first
     const newLectures = [lecture, ...(Array.isArray(stats.pastLectures) ? stats.pastLectures : [])];
     const newStats = { ...stats, pastLectures: newLectures };
     
     setStats(newStats);
-    localStorage.setItem(getStorageKey(userId), JSON.stringify(newStats));
+    
+    try {
+      localStorage.setItem(getStorageKey(userId), JSON.stringify(newStats));
+    } catch (e) {
+      console.warn('LocalStorage save failed (possible quota exceeded):', e);
+    }
 
+    // 2. Sync to Firestore in the background
     if (userId) {
       try {
-        const lectureWithUid = { ...lecture, uid: userId };
+        const lectureWithUid = { 
+          ...lecture, 
+          uid: userId,
+          // If analysis is exceptionally large, we might want to truncate some secondary fields
+          // But for now, we try the full object
+        };
         const lectureRef = doc(db, 'users', userId, 'lectures', lecture.id);
         await setDoc(lectureRef, lectureWithUid);
-      } catch (e) {
-        console.error('Error saving lecture to firestore', e);
+        console.log("Lecture synced to Firestore successfully");
+      } catch (e: any) {
+        console.error('CRITICAL: Firestore Lecture Save Failed. Error:', e.message || e);
+        // We don't throw here to avoid breaking the UI flow, 
+        // the user already has the lecture in their state/localStorage
       }
     }
   };
