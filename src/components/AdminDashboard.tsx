@@ -15,8 +15,21 @@ export function AdminDashboard() {
 
   const fetchData = async () => {
     try {
+      console.log("Admin: Fetching users...");
       const usersSnap = await getDocs(collection(db, 'users'));
-      const usersData = usersSnap.docs.map(d => ({ id: d.id, ...d.data() }));
+      
+      const usersDataPromises = usersSnap.docs.map(async (d) => {
+        const userData = { id: d.id, ...d.data() };
+        // Fetch lectures subcollection to get accurate count
+        const lecturesSnap = await getDocs(collection(db, 'users', d.id, 'lectures'));
+        return { 
+          ...userData, 
+          actualLectureCount: lecturesSnap.size 
+        };
+      });
+
+      const usersData = await Promise.all(usersDataPromises);
+      console.log("Admin: Users fetched with counts:", usersData.length);
       setUsers(usersData);
 
       const adminsSnap = await getDocs(collection(db, 'admins'));
@@ -127,7 +140,7 @@ export function AdminDashboard() {
                   <p className="font-bold text-slate-800 dark:text-slate-100">{u.displayName || 'بدون اسم'}</p>
                   <p className="text-xs text-slate-500 font-mono">{u.email}</p>
                   <p className="text-[10px] mt-1 text-amber-600 font-bold bg-amber-50 dark:bg-amber-900/30 px-2 py-0.5 rounded-full inline-block">
-                    عدد المحاضرات: {u.freeUploadsUsed || 0}
+                    عدد المحاضرات: {u.actualLectureCount || 0}
                   </p>
                 </div>
                 <button 
@@ -166,7 +179,7 @@ export function AdminDashboard() {
                   <p className="text-xs text-slate-500 font-mono">{u.email}</p>
                   <div className="flex items-center gap-2 mt-1">
                     <p className="text-[10px] text-teal-600 font-bold bg-teal-50 dark:bg-teal-900/30 px-2 py-0.5 rounded-full inline-block">
-                      عدد المحاضرات: {u.freeUploadsUsed || 0}
+                      عدد المحاضرات: {u.actualLectureCount || 0}
                     </p>
                   </div>
                 </div>
