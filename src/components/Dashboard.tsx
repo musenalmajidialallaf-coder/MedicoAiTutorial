@@ -1,16 +1,21 @@
 import { useEffect, useState } from 'react';
-import { Brain, Target, TrendingUp, Globe, Trophy, History } from "lucide-react";
-import { UserStats, Dialect } from "../store/useUserStore";
+import { Brain, Target, TrendingUp, Globe, Trophy, History, Cpu } from "lucide-react";
+import { UserStats, Dialect, AIProvider } from "../store/useUserStore";
 import { db } from '../lib/firebase';
 import { collection, query, orderBy, limit, getDocs } from 'firebase/firestore';
 
-export function Dashboard({ stats, onDialectChange, onLectureSelect }: { stats: UserStats, onDialectChange: (d: Dialect) => void, onLectureSelect?: (l: any) => void }) {
+export function Dashboard({ stats, onDialectChange, onAIProviderChange, onLectureSelect }: { 
+  stats: UserStats, 
+  onDialectChange: (d: Dialect) => void, 
+  onAIProviderChange: (p: AIProvider) => void,
+  onLectureSelect?: (l: any) => void 
+}) {
   const [realLeaderboard, setRealLeaderboard] = useState<any[]>([]);
 
   useEffect(() => {
     const fetchLeaderboard = async () => {
       try {
-        const q = query(collection(db, 'public_profiles'), limit(3)); // we'll limit directly, can't order without index or valid field
+        const q = query(collection(db, 'public_profiles'), limit(3));
         const snap = await getDocs(q);
         const top: any[] = [];
         snap.forEach(doc => top.push(doc.data()));
@@ -35,6 +40,12 @@ export function Dashboard({ stats, onDialectChange, onLectureSelect }: { stats: 
     { id: 'English', label: 'English' },
   ];
 
+  const providers: { id: AIProvider; label: string; icon: string }[] = [
+    { id: 'gemini', label: 'Gemini (Google)', icon: '✨' },
+    { id: 'mistral', label: 'Mistral (French)', icon: '🌬️' },
+    { id: 'groq', label: 'Groq (Fast)', icon: '⚡' },
+  ];
+
   const pastLectures = Array.isArray(stats.pastLectures) ? stats.pastLectures : [];
 
   return (
@@ -52,26 +63,52 @@ export function Dashboard({ stats, onDialectChange, onLectureSelect }: { stats: 
         </div>
       </div>
 
-      {/* Dialect Selector */}
-      <div className="bg-white dark:bg-slate-900 p-4 rounded-2xl shadow-sm border border-slate-100 dark:border-slate-800 transition-colors duration-300">
-        <div className="flex items-center space-x-3 space-x-reverse mb-3">
-          <Globe className="w-5 h-5 text-teal-600" />
-          <h3 className="font-bold text-slate-800 dark:text-slate-100">اختر اللهجة المفضلة للشرح</h3>
+      <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
+        {/* Dialect Selector */}
+        <div className="bg-white dark:bg-slate-900 p-4 rounded-2xl shadow-sm border border-slate-100 dark:border-slate-800 transition-colors duration-300">
+          <div className="flex items-center space-x-3 space-x-reverse mb-3">
+            <Globe className="w-5 h-5 text-teal-600" />
+            <h3 className="font-bold text-slate-800 dark:text-slate-100 italic">لهجة الشرح</h3>
+          </div>
+          <div className="flex flex-wrap gap-2">
+            {dialects.map((d) => (
+              <button
+                key={d.id}
+                onClick={() => onDialectChange(d.id)}
+                className={`px-3 py-1.5 rounded-lg text-xs font-medium transition-all ${
+                  stats.dialect === d.id
+                    ? 'bg-teal-600 text-white shadow-md'
+                    : 'bg-slate-50 dark:bg-slate-800 text-slate-600 dark:text-slate-400 hover:bg-slate-100 dark:hover:bg-slate-700'
+                }`}
+              >
+                {d.label}
+              </button>
+            ))}
+          </div>
         </div>
-        <div className="flex flex-wrap gap-2">
-          {dialects.map((d) => (
-            <button
-              key={d.id}
-              onClick={() => onDialectChange(d.id)}
-              className={`px-4 py-2 rounded-xl text-sm font-medium transition-all ${
-                stats.dialect === d.id
-                  ? 'bg-teal-600 text-white shadow-md shadow-teal-200 dark:shadow-none'
-                  : 'bg-slate-50 dark:bg-slate-800 text-slate-600 dark:text-slate-400 hover:bg-slate-100 dark:hover:bg-slate-700'
-              }`}
-            >
-              {d.label}
-            </button>
-          ))}
+
+        {/* AI Provider Selector */}
+        <div className="bg-white dark:bg-slate-900 p-4 rounded-2xl shadow-sm border border-slate-100 dark:border-slate-800 transition-colors duration-300">
+          <div className="flex items-center space-x-3 space-x-reverse mb-3">
+            <Cpu className="w-5 h-5 text-purple-600" />
+            <h3 className="font-bold text-slate-800 dark:text-slate-100 italic">محرك الذكاء (للمناقشة)</h3>
+          </div>
+          <div className="flex flex-wrap gap-2">
+            {providers.map((p) => (
+              <button
+                key={p.id}
+                onClick={() => onAIProviderChange(p.id)}
+                className={`px-4 py-2 rounded-xl text-xs font-bold transition-all flex items-center space-x-2 space-x-reverse ${
+                  stats.aiProvider === p.id
+                    ? 'bg-purple-600 text-white shadow-md'
+                    : 'bg-slate-50 dark:bg-slate-800 text-slate-600 dark:text-slate-400 hover:bg-slate-100 dark:hover:bg-slate-700'
+                }`}
+              >
+                <span>{p.icon}</span>
+                <span>{p.label}</span>
+              </button>
+            ))}
+          </div>
         </div>
       </div>
 

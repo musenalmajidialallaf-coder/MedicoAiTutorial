@@ -1,5 +1,7 @@
 import { GoogleGenAI, Type } from "@google/genai";
 import { UserStats, PastLecture } from "../store/useUserStore";
+import Groq from "groq-sdk";
+import { Mistral } from "@mistralai/mistralai";
 
 // Reverting to the correct API pattern for @google/genai version 1.29.0
 // Supporting multiple ways the key could be injected during build
@@ -9,11 +11,26 @@ const GEMINI_KEY = (
   ''
 ).replace(/['"]/g, '');
 
+const MISTRAL_KEY = (
+  process.env.MISTRAL_API_KEY || 
+  (import.meta as any).env?.VITE_MISTRAL_API_KEY || 
+  ''
+).replace(/['"]/g, '');
+
+const GROQ_KEY = (
+  process.env.GROQ_API_KEY || 
+  (import.meta as any).env?.VITE_GROQ_API_KEY || 
+  ''
+).replace(/['"]/g, '');
+
 if (!GEMINI_KEY || GEMINI_KEY === 'undefined') {
-  console.error("CRITICAL: GEMINI_API_KEY is missing or invalid. Deployment requires this key in GitHub Secrets.");
+  console.error("CRITICAL: GEMINI_API_KEY is missing or invalid.");
 }
 
-const ai = new GoogleGenAI({ apiKey: GEMINI_KEY });
+export const ai = new GoogleGenAI({ apiKey: GEMINI_KEY });
+
+export const mistral = MISTRAL_KEY ? new Mistral({ apiKey: MISTRAL_KEY }) : null;
+export const groq = GROQ_KEY ? new Groq({ apiKey: GROQ_KEY, dangerouslyAllowBrowser: true }) : null;
 
 const STABLE_MODEL = "gemini-3.1-pro-preview";
 
@@ -160,12 +177,35 @@ Instructions:
 2. Answer based on the current lecture or simulation context.
 3. Keep the interaction immersive.`;
 
-  const response = await ai.models.generateContent({
-    model: STABLE_MODEL,
-    contents: prompt,
-  });
+  try {
+    if (stats.aiProvider === 'mistral' && mistral) {
+      const response = await mistral.chat.complete({
+        model: "mistral-large-latest",
+        messages: [{ role: 'user', content: prompt }],
+      });
+      return typeof response.choices?.[0]?.message?.content === 'string' 
+        ? response.choices[0].message.content 
+        : "عذراً، محرك Mistral واجه مشكلة.";
+    }
 
-  return response.text || "عذراً، ما كدرت اجاوب على هذا السؤال حالياً.";
+    if (stats.aiProvider === 'groq' && groq) {
+      const response = await groq.chat.completions.create({
+        model: "llama-3.3-70b-versatile",
+        messages: [{ role: 'user', content: prompt }],
+      });
+      return response.choices[0]?.message?.content || "عذراً، محرك Groq واجه مشكلة.";
+    }
+
+    // Default to Gemini
+    const response = await ai.models.generateContent({
+      model: STABLE_MODEL,
+      contents: prompt,
+    });
+    return response.text || "عذراً، ما كدرت اجاوب على هذا السؤال حالياً.";
+  } catch (error) {
+    console.error(`AI Provider (${stats.aiProvider}) error:`, error);
+    return `عذراً، المحرك ${stats.aiProvider} واجه خطأ تقني.`;
+  }
 }
 
 export async function generateQuiz(explanation: string): Promise<MCQ[]> {
