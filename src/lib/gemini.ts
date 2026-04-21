@@ -1,6 +1,16 @@
+import Groq from "groq-sdk";
 import { UserStats } from "../store/useUserStore";
 
-// Vision and Chat models are now managed on the server side
+const GROQ_KEY = (
+  process.env.GROQ_API_KEY || 
+  (import.meta as any).env?.VITE_GROQ_API_KEY || 
+  ''
+).replace(/['"]/g, '');
+
+export const groq = GROQ_KEY ? new Groq({ apiKey: GROQ_KEY, dangerouslyAllowBrowser: true }) : null;
+
+const CHAT_MODEL = "llama-3.3-70b-versatile";
+const VISION_MODEL = "llama-3.2-90b-vision-preview";
 
 export interface ExplanationBlock {
   heading: string;
@@ -29,6 +39,8 @@ export interface LectureAnalysis {
 }
 
 export async function analyzeLecture(base64Data: string, mimeType: string, stats: UserStats): Promise<LectureAnalysis> {
+  if (!groq) throw new Error("Groq client not initialized. Please add GROQ_API_KEY in settings.");
+
   const lastLecture = stats.pastLectures.length > 0 ? stats.pastLectures[0] : null;
   
   const dialectMap: Record<string, string> = {
@@ -68,18 +80,38 @@ ${lastLecture ? `العنوان: ${lastLecture.title}\nالملخص: ${lastLectu
 - glossary: قاموس مصطلحات
 - summaryForFuture: ملخص للمستقبل (5 أسطر)`;
 
-  const response = await fetch('/api/analyze', {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({ prompt, base64Data, mimeType })
-  });
+  const isImage = mimeType.startsWith('image/');
+  const messages: any[] = [
+    {
+      role: "user",
+      content: [
+        { type: "text", text: prompt },
+      ]
+    }
+  ];
 
-  if (!response.ok) {
-    const err = await response.json();
-    throw new Error(err.error || "فشل تحليل المحاضرة");
+  if (isImage) {
+    messages[0].content.push({
+      type: "image_url",
+      image_url: { url: `data:${mimeType};base64,${base64Data}` }
+    });
+  } else {
+    messages[0].content.push({
+      type: "text",
+      text: `[File Content (Base64 Encoded)]: ${base64Data.slice(0, 50000)}` 
+    });
   }
 
-  return response.json();
+  const response = await groq.chat.completions.create({
+    model: isImage ? VISION_MODEL : CHAT_MODEL,
+    messages,
+    response_format: { type: "json_object" },
+    temperature: 0.3,
+  });
+
+  const content = response.choices[0]?.message?.content;
+  if (!content) throw new Error("Empty response from Groq");
+  return JSON.parse(content);
 }
 
 export async function askQuestion(question: string, currentExplanation: string, stats: UserStats): Promise<string> {
@@ -99,23 +131,17 @@ ${pastLecturesContext || 'None'}
 
 Student's Question: ${question}`;
 
+  if (!groq) return "عذراً، محرك Groq غير متوفر حالياً.";
+
   try {
-    const response = await fetch('/api/ask', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ prompt })
+    const response = await groq.chat.completions.create({
+      model: CHAT_MODEL,
+      messages: [{ role: 'user', content: prompt }],
     });
-
-    if (!response.ok) {
-      const err = await response.json();
-      throw new Error(err.error || "فشل الحصول على إجابة");
-    }
-
-    const data = await response.json();
-    return data.content || "عذراً، محرك الذكاء واجه مشكلة.";
+    return response.choices[0]?.message?.content || "عذراً، محرك Groq واجه مشكلة.";
   } catch (error) {
     console.error(`Ask Question error:`, error);
-    return `عذراً، حدث خطأ تقني في الاتصال بالخادم.`;
+    return `عذراً، حدث خطأ تقني في الاتصال بمحرك الذكاء.`;
   }
 }
 
@@ -133,19 +159,17 @@ export async function generateQuiz(explanation: string): Promise<MCQ[]> {
 المحتوى الطبي:
 ${explanation}`;
 
+  if (!groq) throw new Error("Groq not initialized");
+
   try {
-    const response = await fetch('/api/quiz', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ prompt })
+    const response = await groq.chat.completions.create({
+      model: CHAT_MODEL,
+      messages: [{ role: 'user', content: prompt }],
+      response_format: { type: "json_object" }
     });
 
-    if (!response.ok) {
-      const err = await response.json();
-      throw new Error(err.error || "فشل إنشاء الاختبار");
-    }
-
-    const parsed = await response.json();
+    const content = response.choices[0]?.message?.content;
+    const parsed = JSON.parse(content || "{}");
     const finalArray = Array.isArray(parsed) ? parsed : (parsed.quizzes || parsed.mcqs || parsed.questions || Object.values(parsed)[0]);
     return finalArray as MCQ[];
   } catch (error) {
