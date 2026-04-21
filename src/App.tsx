@@ -242,6 +242,13 @@ export default function App() {
     } catch (error: any) {
       console.error("Upload process error:", error);
       const errorMessage = error?.message || '';
+      
+      if (!process.env.GEMINI_API_KEY) {
+        alert('حدث خطأ تقني (مفتاح الـ API مفقود). يرجى التأكد من إضافة GEMINI_API_KEY في إعدادات GitHub Secrets.');
+        navigateTo('idle', true);
+        return;
+      }
+
       if (errorMessage.includes('xhr error') || errorMessage.includes('500') || errorMessage.includes('timeout')) {
         alert('انقطع الاتصال بالخادم (خطأ روتيني). يرجى الضغط على زر "رفع ملف" مرة أخرى أو تحديث الصفحة إذا تكرر الخطأ.');
       } else if (errorMessage.includes('Safety')) {

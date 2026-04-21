@@ -3,6 +3,9 @@ import { UserStats, PastLecture } from "../store/useUserStore";
 
 // Reverting to the correct API pattern for @google/genai version 1.29.0
 const GEMINI_KEY = process.env.GEMINI_API_KEY || '';
+if (!GEMINI_KEY) {
+  console.error("CRITICAL: GEMINI_API_KEY is missing. AI features will not work.");
+}
 const ai = new GoogleGenAI({ apiKey: GEMINI_KEY });
 
 const STABLE_MODEL = "gemini-2.0-flash";
