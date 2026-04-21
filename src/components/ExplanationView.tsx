@@ -44,23 +44,35 @@ export function ExplanationView({ analysis }: ExplanationViewProps) {
     }
   });
 
+  const [isGeneratingQuiz, setIsGeneratingQuiz] = useState(false);
+
+  // Sync MCQs to localStorage
   useEffect(() => {
     try {
       if (mcqs.length > 0) {
         localStorage.setItem(`app_mcqs_${analysis.title}`, JSON.stringify(mcqs));
-      } else {
-        localStorage.removeItem(`app_mcqs_${analysis.title}`);
       }
-    } catch (e) {
-      console.warn('Failed to save MCQs to local storage');
-    }
+    } catch (e) {}
   }, [mcqs, analysis.title]);
 
-  const [isGeneratingQuiz, setIsGeneratingQuiz] = useState(false);
-
-  const downloadPDF = () => {
-    window.print();
-  };
+  // Auto-generate quiz in background if not already present
+  useEffect(() => {
+    if (mcqs.length === 0 && analysis) {
+      const triggerBgQuiz = async () => {
+        setIsGeneratingQuiz(true);
+        try {
+          const fullExplanation = (analysis.explanationBlocks || []).map(b => `${b.heading}\n${b.content}`).join('\n\n');
+          const generatedQuiz = await generateQuiz(fullExplanation);
+          setMcqs(generatedQuiz);
+        } catch (error) {
+          console.error('Failed to pre-generate quiz', error);
+        } finally {
+          setIsGeneratingQuiz(false);
+        }
+      };
+      triggerBgQuiz();
+    }
+  }, [analysis.title]);
 
   const submitFeedback = async () => {
     if (!feedbackType) return;
