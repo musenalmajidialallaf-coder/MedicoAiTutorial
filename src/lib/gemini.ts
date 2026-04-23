@@ -1,20 +1,10 @@
-import Groq from "groq-sdk";
 import { GoogleGenAI, Type } from "@google/genai";
 import { UserStats } from "../store/useUserStore";
 
-const GROQ_KEY = (
-  process.env.GROQ_API_KEY || 
-  (import.meta as any).env?.VITE_GROQ_API_KEY || 
-  ''
-).replace(/['"]/g, '');
-
 const GEMINI_KEY = process.env.GEMINI_API_KEY || "";
-
-export const groq = GROQ_KEY ? new Groq({ apiKey: GROQ_KEY, dangerouslyAllowBrowser: true }) : null;
 const ai = new GoogleGenAI({ apiKey: GEMINI_KEY });
 
-const CHAT_MODEL = "llama-3.3-70b-versatile";
-const VISION_MODEL = "llama-3.2-90b-vision-preview";
+const GEMINI_MODEL = "gemini-3-flash-preview"; 
 
 export interface ExplanationBlock {
   heading: string;
@@ -57,7 +47,7 @@ export async function analyzeLecture(base64Data: string, mimeType: string, stats
     'Fusha': 'اللغة العربية الفصحى'
   };
 
-  const prompt = `أنت "عضيدك الطبي" (Your Medical Buddy) - طالب نابغة وخبير في تبسيط المعقد، وشرحك يُعتبر "المرجع الذهبي" لزملائك. تعمل الآن بمحرك متطور.
+  const prompt = `أنت "عضيدك الطبي" (Your Medical Buddy) - طالب نابغة وخبير في تبسيط المعقد، وشرحك يُعتبر "المرجع الذهبي" لزملائك. 
 
 هذا التحدي: حول ملف المحاضرة الملحق إلى "شرح موسوعي شامل" (Encyclopedic Explanation) بلهجة (${dialectMap[stats.dialect] || 'اللهجة العراقية'}). 
 
@@ -76,10 +66,11 @@ export async function analyzeLecture(base64Data: string, mimeType: string, stats
 ${lastLecture ? `العنوان: ${lastLecture.title}\nالملخص: ${lastLecture.summary}` : 'لا توجد مراجعة.'}`;
 
   try {
-    const response = await ai.models.generateContent({
-      model: "gemini-3-flash-preview",
+    const result = await ai.models.generateContent({
+      model: GEMINI_MODEL,
       contents: [
         {
+          role: "user",
           parts: [
             { text: prompt },
             { inlineData: { data: base64Data, mimeType } }
@@ -124,7 +115,7 @@ ${lastLecture ? `العنوان: ${lastLecture.title}\nالملخص: ${lastLectu
       }
     });
 
-    const text = response.text || "{}";
+    const text = result.text || "{}";
     return JSON.parse(text);
   } catch (error: any) {
     console.error("Gemini Analysis Error:", error);
@@ -149,14 +140,12 @@ ${pastLecturesContext || 'None'}
 
 Student's Question: ${question}`;
 
-  if (!groq) return "عذراً، محرك Groq غير متوفر حالياً.";
-
   try {
-    const response = await groq.chat.completions.create({
-      model: CHAT_MODEL,
-      messages: [{ role: 'user', content: prompt }],
+    const result = await ai.models.generateContent({
+      model: GEMINI_MODEL,
+      contents: prompt
     });
-    return response.choices[0]?.message?.content || "عذراً، محرك Groq واجه مشكلة.";
+    return result.text || "عذراً، محرك الذكاء واجه مشكلة.";
   } catch (error) {
     console.error(`Ask Question error:`, error);
     return `عذراً، حدث خطأ تقني في الاتصال بمحرك الذكاء.`;
@@ -167,29 +156,36 @@ export async function generateQuiz(explanation: string): Promise<MCQ[]> {
   const prompt = `أنت بروفيسور طبي دقيق ومتمرس في وضع أسئلة الزمالات (Board Exams).
 إنشاء 10 أسئلة خيارات متعددة (MCQs) بنظام Clinical Case Scenarios بناءً على الشرح الطبي المرفق.
 
-التعليمات للصيغة (JSON):
-أجب بصيغة JSON حصراً، وتحتوي على قائمة من الكائنات بخصائص:
-- question: (English Case)
-- options: (4 options in English)
-- correctAnswerIndex: (0-3)
-- explanation: (Arabic Detail)
-
 المحتوى الطبي:
 ${explanation}`;
 
-  if (!groq) throw new Error("Groq not initialized");
-
   try {
-    const response = await groq.chat.completions.create({
-      model: CHAT_MODEL,
-      messages: [{ role: 'user', content: prompt }],
-      response_format: { type: "json_object" }
+    const result = await ai.models.generateContent({
+      model: GEMINI_MODEL,
+      contents: prompt,
+      config: {
+        responseMimeType: "application/json",
+        responseSchema: {
+          type: Type.ARRAY,
+          items: {
+            type: Type.OBJECT,
+            properties: {
+              question: { type: Type.STRING },
+              options: {
+                type: Type.ARRAY,
+                items: { type: Type.STRING }
+              },
+              correctAnswerIndex: { type: Type.NUMBER },
+              explanation: { type: Type.STRING }
+            },
+            required: ['question', 'options', 'correctAnswerIndex', 'explanation']
+          }
+        }
+      }
     });
 
-    const content = response.choices[0]?.message?.content;
-    const parsed = JSON.parse(content || "{}");
-    const finalArray = Array.isArray(parsed) ? parsed : (parsed.quizzes || parsed.mcqs || parsed.questions || Object.values(parsed)[0]);
-    return finalArray as MCQ[];
+    const text = result.text || "[]";
+    return JSON.parse(text) as MCQ[];
   } catch (error) {
     console.error("Quiz Generation error:", error);
     throw new Error("فشل إنشاء الاختبار.");
