@@ -1,4 +1,5 @@
 import Groq from "groq-sdk";
+import { GoogleGenAI, Type } from "@google/genai";
 import { UserStats } from "../store/useUserStore";
 
 const GROQ_KEY = (
@@ -7,7 +8,10 @@ const GROQ_KEY = (
   ''
 ).replace(/['"]/g, '');
 
+const GEMINI_KEY = process.env.GEMINI_API_KEY || "";
+
 export const groq = GROQ_KEY ? new Groq({ apiKey: GROQ_KEY, dangerouslyAllowBrowser: true }) : null;
+const ai = new GoogleGenAI({ apiKey: GEMINI_KEY });
 
 const CHAT_MODEL = "llama-3.3-70b-versatile";
 const VISION_MODEL = "llama-3.2-90b-vision-preview";
@@ -39,8 +43,6 @@ export interface LectureAnalysis {
 }
 
 export async function analyzeLecture(base64Data: string, mimeType: string, stats: UserStats): Promise<LectureAnalysis> {
-  if (!groq) throw new Error("Groq client not initialized. Please add GROQ_API_KEY in settings.");
-
   const lastLecture = stats.pastLectures.length > 0 ? stats.pastLectures[0] : null;
   
   const dialectMap: Record<string, string> = {
@@ -55,7 +57,7 @@ export async function analyzeLecture(base64Data: string, mimeType: string, stats
     'Fusha': 'اللغة العربية الفصحى'
   };
 
-  const prompt = `أنت "عضيدك الطبي" (Your Medical Buddy) - طالب نابغة وخبير في تبسيط المعقد، وشرحك يُعتبر "المرجع الذهبي" لزملائك. تعمل الآن بمحرك Groq الفائق السرعة.
+  const prompt = `أنت "عضيدك الطبي" (Your Medical Buddy) - طالب نابغة وخبير في تبسيط المعقد، وشرحك يُعتبر "المرجع الذهبي" لزملائك. تعمل الآن بمحرك متطور.
 
 هذا التحدي: حول ملف المحاضرة الملحق إلى "شرح موسوعي شامل" (Encyclopedic Explanation) بلهجة (${dialectMap[stats.dialect] || 'اللهجة العراقية'}). 
 
@@ -65,53 +67,69 @@ export async function analyzeLecture(base64Data: string, mimeType: string, stats
 3. **التفصيل الممل (The Detail Monster)**: الهدف هو ألا يحتاج الطالب للعودة لملف المحاضرة الأصلي أبداً.
 4. **Physiology Base**: قبل الدخول في أي مرض، "يجب" شرح فسيولوجيا العضو المشروح في حالته الطبيعية بفقرات طويلة.
 
-نظام البطاقات:
+نظام البطاقات (Type):
 - 'academic': للفسلجة الكاملة، التشريح الدقيق، والآلية الحيوية.
 - 'clinical': للفحص السريري، الأعراض بالتفصيل، التحاليل وقراءتها، والعلاجات.
 - 'red_flag': للتحذيرات والمخاطر الطبية.
 
 مراجعة المحاضرة السابقة:
-${lastLecture ? `العنوان: ${lastLecture.title}\nالملخص: ${lastLecture.summary}` : 'لا توجد مراجعة.'}
+${lastLecture ? `العنوان: ${lastLecture.title}\nالملخص: ${lastLecture.summary}` : 'لا توجد مراجعة.'}`;
 
-أجب بصيغة JSON حصراً، ويجب أن يحتوي الـ JSON على الخصائص التالية:
-- title: عنوان المحاضرة
-- previousReview: مراجعة للمحاضرة السابقة (5 أسطر)
-- explanationBlocks: قائمة بالعناوين والشرح والنوع
-- glossary: قاموس مصطلحات
-- summaryForFuture: ملخص للمستقبل (5 أسطر)`;
-
-  const isImage = mimeType.startsWith('image/');
-  const messages: any[] = [
-    {
-      role: "user",
-      content: [
-        { type: "text", text: prompt },
-      ]
-    }
-  ];
-
-  if (isImage) {
-    messages[0].content.push({
-      type: "image_url",
-      image_url: { url: `data:${mimeType};base64,${base64Data}` }
+  try {
+    const response = await ai.models.generateContent({
+      model: "gemini-3-flash-preview",
+      contents: [
+        {
+          parts: [
+            { text: prompt },
+            { inlineData: { data: base64Data, mimeType } }
+          ]
+        }
+      ],
+      config: {
+        responseMimeType: "application/json",
+        responseSchema: {
+          type: Type.OBJECT,
+          properties: {
+            title: { type: Type.STRING },
+            previousReview: { type: Type.STRING },
+            explanationBlocks: {
+              type: Type.ARRAY,
+              items: {
+                type: Type.OBJECT,
+                properties: {
+                  heading: { type: Type.STRING },
+                  content: { type: Type.STRING },
+                  type: { type: Type.STRING, enum: ['academic', 'clinical', 'red_flag'] }
+                },
+                required: ['heading', 'content', 'type']
+              }
+            },
+            glossary: {
+              type: Type.ARRAY,
+              items: {
+                type: Type.OBJECT,
+                properties: {
+                  term: { type: Type.STRING },
+                  definition: { type: Type.STRING }
+                },
+                required: ['term', 'definition']
+              }
+            },
+            summaryForFuture: { type: Type.STRING }
+          },
+          required: ['title', 'previousReview', 'explanationBlocks', 'glossary', 'summaryForFuture']
+        },
+        temperature: 0.3
+      }
     });
-  } else {
-    messages[0].content.push({
-      type: "text",
-      text: `[File Content (Base64 Encoded)]: ${base64Data.slice(0, 50000)}` 
-    });
+
+    const text = response.text || "{}";
+    return JSON.parse(text);
+  } catch (error: any) {
+    console.error("Gemini Analysis Error:", error);
+    throw new Error(`تعذر تحليل المحاضرة: ${error.message}`);
   }
-
-  const response = await groq.chat.completions.create({
-    model: isImage ? VISION_MODEL : CHAT_MODEL,
-    messages,
-    response_format: { type: "json_object" },
-    temperature: 0.3,
-  });
-
-  const content = response.choices[0]?.message?.content;
-  if (!content) throw new Error("Empty response from Groq");
-  return JSON.parse(content);
 }
 
 export async function askQuestion(question: string, currentExplanation: string, stats: UserStats): Promise<string> {

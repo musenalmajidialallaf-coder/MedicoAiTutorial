@@ -1,21 +1,48 @@
 import { initializeApp } from 'firebase/app';
 import { getAuth, GoogleAuthProvider, signInWithPopup, signOut } from 'firebase/auth';
 import { getFirestore, getDocFromServer, doc } from 'firebase/firestore';
-// Manual config for absolute reliability with custom domains
-const firebaseConfig = {
-  projectId: "ai-studio-applet-webapp-1d4ad",
-  appId: "1:199134510481:web:930360d61e64f784e32e30",
-  apiKey: "AIzaSyAcXiHnfx7hLQZtc6cvy27KrgE8YgaIDss",
-  authDomain: "ai-studio-applet-webapp-1d4ad.firebaseapp.com",
-  firestoreDatabaseId: "ai-studio-d69f661d-81ae-47e4-9e62-b0ab245d7dc3",
-  storageBucket: "ai-studio-applet-webapp-1d4ad.firebasestorage.app",
-  messagingSenderId: "199134510481"
-};
+import firebaseConfig from '../../firebase-applet-config.json';
 
 const app = initializeApp(firebaseConfig);
 export const auth = getAuth(app);
 export const db = getFirestore(app, firebaseConfig.firestoreDatabaseId);
-export const googleProvider = new GoogleAuthProvider();
+
+export const signInWithGoogle = async (promptSelectAccount = false) => {
+  try {
+    const provider = new GoogleAuthProvider();
+    if (promptSelectAccount) {
+      provider.setCustomParameters({
+        prompt: 'select_account'
+      });
+    }
+    await signInWithPopup(auth, provider);
+  } catch (error: any) {
+    console.error("Error signing in with Google", error);
+    handleAuthError(error);
+  }
+};
+
+function handleAuthError(error: any) {
+  const errorCode = error.code;
+  
+  if (errorCode === 'auth/network-request-failed') {
+    alert("حدث خطأ في الشبكة (Network Error). يرجى التأكد من:\n1. إيقاف أي مانع إعلانات (AdBlocker) قد يمنع خدمات جوجل.\n2. استخدام متصفح يدعم النوافذ المنبثقة.\n3. الضغط على زر 'فتح التطبيق في نافذة جديدة' أسفل أزرار الدخول.");
+  } else if (error.message && error.message.includes('initial state')) {
+    alert("عذراً، متصفحك يمنع تسجيل الدخول داخل هذه النافذة. يرجى الضغط على زر 'فتح التطبيق في نافذة جديدة' أسفل أزرار الدخول.");
+  } else if (errorCode === 'auth/popup-closed-by-user') {
+    // Normal case, user closed the popup
+  } else {
+    alert(`حدث خطأ أثناء تسجيل الدخول: ${error.message || 'يرجى المحاولة مرة أخرى أو فتح التطبيق في نافذة جديدة.'}`);
+  }
+}
+
+export const logOut = async () => {
+  try {
+    await signOut(auth);
+  } catch (error) {
+    console.error("Error signing out", error);
+  }
+};
 
 // Improved connection testing with clearer logs
 async function testConnection() {
@@ -82,30 +109,3 @@ export function handleFirestoreError(error: unknown, operationType: OperationTyp
   console.error('Firestore Error: ', JSON.stringify(errInfo));
   throw new Error(JSON.stringify(errInfo));
 }
-
-export const signInWithGoogle = async (promptSelectAccount = false) => {
-  try {
-    const provider = new GoogleAuthProvider();
-    if (promptSelectAccount) {
-      provider.setCustomParameters({
-        prompt: 'select_account'
-      });
-    }
-    await signInWithPopup(auth, provider);
-  } catch (error: any) {
-    console.error("Error signing in with Google", error);
-    if (error.message && error.message.includes('initial state')) {
-      alert("عذراً، متصفحك يمنع تسجيل الدخول داخل هذه النافذة. يرجى الضغط على زر 'فتح التطبيق في نافذة جديدة' الموجود أسفل زر تسجيل الدخول.");
-    } else {
-      alert("حدث خطأ أثناء تسجيل الدخول. يرجى التأكد من تفعيل النوافذ المنبثقة (Pop-ups) أو فتح التطبيق في نافذة جديدة.");
-    }
-  }
-};
-
-export const logOut = async () => {
-  try {
-    await signOut(auth);
-  } catch (error) {
-    console.error("Error signing out", error);
-  }
-};
