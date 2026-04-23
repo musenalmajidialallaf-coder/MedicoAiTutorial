@@ -1,15 +1,19 @@
 import { useEffect, useState } from 'react';
-import { Brain, Target, TrendingUp, Globe, Trophy, History, Cpu } from "lucide-react";
+import { Brain, Target, TrendingUp, Globe, Trophy, History, Cpu, Key, Info, CheckCircle, ExternalLink, AlertTriangle } from "lucide-react";
 import { UserStats, Dialect } from "../store/useUserStore";
 import { db } from '../lib/firebase';
 import { collection, query, orderBy, limit, getDocs } from 'firebase/firestore';
 
-export function Dashboard({ stats, onDialectChange, onLectureSelect }: { 
+export function Dashboard({ stats, onDialectChange, onLectureSelect, onApiKeySave }: { 
   stats: UserStats, 
   onDialectChange: (d: Dialect) => void, 
-  onLectureSelect?: (l: any) => void 
+  onLectureSelect?: (l: any) => void,
+  onApiKeySave?: (key: string) => void
 }) {
   const [realLeaderboard, setRealLeaderboard] = useState<any[]>([]);
+  const [apiKey, setApiKey] = useState(stats.geminiApiKey || '');
+  const [showKeyInfo, setShowKeyInfo] = useState(false);
+  const [isSaved, setIsSaved] = useState(false);
 
   useEffect(() => {
     const fetchLeaderboard = async () => {
@@ -41,8 +45,81 @@ export function Dashboard({ stats, onDialectChange, onLectureSelect }: {
 
   const pastLectures = Array.isArray(stats.pastLectures) ? stats.pastLectures : [];
 
+  const handleSaveKey = () => {
+    if (onApiKeySave) {
+      onApiKeySave(apiKey);
+      setIsSaved(true);
+      setTimeout(() => setIsSaved(false), 3000);
+    }
+  };
+
   return (
     <div className="space-y-6 mb-8">
+      {/* API Key Section */}
+      <div className="bg-white dark:bg-slate-900 p-6 rounded-3xl shadow-sm border border-slate-100 dark:border-slate-800 transition-colors duration-300">
+        <div className="flex items-center justify-between mb-4">
+          <div className="flex items-center space-x-3 space-x-reverse">
+            <div className="p-2 bg-indigo-50 dark:bg-indigo-900/30 text-indigo-600 dark:text-indigo-400 rounded-lg">
+              <Key className="w-5 h-5" />
+            </div>
+            <h3 className="font-bold text-slate-800 dark:text-slate-100">مفتاح الذكاء الخاص بك (Gemini API)</h3>
+          </div>
+          <button 
+            onClick={() => setShowKeyInfo(!showKeyInfo)}
+            className="text-xs text-indigo-600 dark:text-indigo-400 font-bold flex items-center gap-1 hover:underline"
+          >
+            <Info className="w-3 h-3" />
+            كيف أحصل على الكود؟
+          </button>
+        </div>
+
+        {showKeyInfo && (
+          <div className="mb-4 p-4 bg-indigo-50/50 dark:bg-indigo-900/10 rounded-2xl border border-indigo-100 dark:border-indigo-900/30 text-sm animate-in fade-in slide-in-from-top-2">
+            <h4 className="font-bold text-indigo-800 dark:text-indigo-200 mb-2">خطوات الحصول على الكود مجاناً:</h4>
+            <ol className="list-decimal list-inside space-y-1 text-slate-700 dark:text-slate-300">
+              <li>افتح موقع <a href="https://aistudio.google.com/app/apikey" target="_blank" rel="noopener noreferrer" className="text-indigo-600 underline inline-flex items-center gap-1">Google AI Studio <ExternalLink className="w-3 h-3"/></a></li>
+              <li>سجل دخولك بحساب جوجل العادي</li>
+              <li>اضغط على Get API KEY</li>
+              <li>اضغط على زر <span className="font-bold">"Create API key"</span></li>
+              <li>انسخ الكود الطويل الناتج والصقه في الحقل أدناه</li>
+            </ol>
+            <p className="mt-3 text-[10px] text-slate-500">ملاحظة: هذا الكود ملك لك ولا يتم مشاركته مع أحد. إذا توقف التطبيق عن العمل، قد تحتاج لتكرار العملية للحصول على كود جديد.</p>
+          </div>
+        )}
+
+        <div className="flex gap-2">
+          <div className="relative flex-1">
+            <input 
+              type="password" 
+              value={apiKey}
+              onChange={(e) => setApiKey(e.target.value)}
+              placeholder="الصق مفتاح الـ API هنا (مثال: AIzaSy...)"
+              className="w-full bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl px-4 py-3 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500 font-mono transition-colors"
+            />
+            {stats.geminiApiKey && stats.geminiApiKey.length > 10 && (
+              <div className="absolute left-3 top-1/2 -translate-y-1/2 text-emerald-500">
+                <CheckCircle className="w-4 h-4" />
+              </div>
+            )}
+          </div>
+          <button 
+            onClick={handleSaveKey}
+            className={`px-6 py-3 rounded-xl font-bold text-sm transition-all shadow-sm ${
+              isSaved ? 'bg-emerald-600 text-white' : 'bg-indigo-600 hover:bg-indigo-700 text-white'
+            }`}
+          >
+            {isSaved ? 'تم الحفظ!' : 'حفظ الكود'}
+          </button>
+        </div>
+        
+        {!stats.geminiApiKey && (
+          <div className="mt-3 flex items-center gap-2 text-amber-600 dark:text-amber-400 text-xs font-medium">
+            <AlertTriangle className="w-4 h-4" />
+            <span>يجب إضافة كود الـ API لكي تتمكن من رفع المحاضرات</span>
+          </div>
+        )}
+      </div>
+
       <div className="bg-amber-50 dark:bg-amber-900/20 border-r-4 border-amber-500 p-4 rounded-l-xl">
         <div className="flex items-start space-x-3 space-x-reverse">
           <div className="shrink-0">

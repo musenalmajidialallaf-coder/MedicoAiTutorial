@@ -1,8 +1,28 @@
 import { GoogleGenAI, Type } from "@google/genai";
 import { UserStats } from "../store/useUserStore";
 
-const GEMINI_KEY = process.env.GEMINI_API_KEY || "";
-const ai = new GoogleGenAI({ apiKey: GEMINI_KEY });
+// Get AI instance dynamically based on user API key
+function getAIInstance(userApiKey?: string) {
+  const env = (import.meta as any).env;
+  const internalKey = (
+    process.env.GEMINI_API_KEY || 
+    env?.VITE_GEMINI_API_KEY || 
+    env?.GEMINI_API_KEY ||
+    ""
+  ).replace(/['"]/g, '').trim();
+
+  // If internal key exists and is valid, use it for the developer/user benefit
+  // Otherwise fall back to user-provided key
+  const finalKey = (internalKey && internalKey.length > 10) 
+    ? internalKey 
+    : ((userApiKey && userApiKey.trim().length > 10) ? userApiKey : "");
+  
+  if (!finalKey || finalKey.length < 10) {
+    throw new Error('MISSING_API_KEY');
+  }
+
+  return new GoogleGenAI({ apiKey: finalKey });
+}
 
 const GEMINI_MODEL = "gemini-3-flash-preview"; 
 
@@ -33,6 +53,7 @@ export interface LectureAnalysis {
 }
 
 export async function analyzeLecture(base64Data: string, mimeType: string, stats: UserStats): Promise<LectureAnalysis> {
+  const ai = getAIInstance(stats.geminiApiKey);
   const lastLecture = stats.pastLectures.length > 0 ? stats.pastLectures[0] : null;
   
   const dialectMap: Record<string, string> = {
@@ -124,9 +145,11 @@ ${lastLecture ? `العنوان: ${lastLecture.title}\nالملخص: ${lastLectu
 }
 
 export async function askQuestion(question: string, currentExplanation: string, stats: UserStats): Promise<string> {
-  const pastLecturesContext = stats.pastLectures.map(l => `Title: ${l.title}\nSummary: ${l.summary}`).join('\n\n');
-  
-  const prompt = `أنت "Professor Novix"، خبير التعليم الطبي والمحاكي السريري للأوسكي (OSCE).
+  try {
+    const ai = getAIInstance(stats.geminiApiKey);
+    const pastLecturesContext = stats.pastLectures.map(l => `Title: ${l.title}\nSummary: ${l.summary}`).join('\n\n');
+    
+    const prompt = `أنت "Professor Novix"، خبير التعليم الطبي والمحاكي السريري للأوسكي (OSCE).
 
 عندما يبدأ الطالب بالتحدث معك، تأكد من فهم مراده (هل يطرح سؤالاً عاماً أم يريد بدء محاكاة حالة).
 - إذا طلب "محاكاة حالة" أو "AI Patient Simulator": تقمص شخصية مريض (يفضل بلهجة عراقية طبية واقعية). 
@@ -140,19 +163,21 @@ ${pastLecturesContext || 'None'}
 
 Student's Question: ${question}`;
 
-  try {
     const result = await ai.models.generateContent({
       model: GEMINI_MODEL,
       contents: prompt
     });
     return result.text || "عذراً، محرك الذكاء واجه مشكلة.";
-  } catch (error) {
+  } catch (error: any) {
     console.error(`Ask Question error:`, error);
+    if (error.message === 'MISSING_API_KEY') {
+      return "يرجى إدخال مفتاح Gemini API في لوحة التحكم للتمكن من الدردشة.";
+    }
     return `عذراً، حدث خطأ تقني في الاتصال بمحرك الذكاء.`;
   }
 }
 
-export async function generateQuiz(explanation: string): Promise<MCQ[]> {
+export async function generateQuiz(explanation: string, stats: UserStats): Promise<MCQ[]> {
   const prompt = `أنت بروفيسور طبي دقيق ومتمرس في وضع أسئلة الزمالات (Board Exams).
 إنشاء 10 أسئلة خيارات متعددة (MCQs) بنظام Clinical Case Scenarios بناءً على الشرح الطبي المرفق.
 
@@ -160,6 +185,7 @@ export async function generateQuiz(explanation: string): Promise<MCQ[]> {
 ${explanation}`;
 
   try {
+    const ai = getAIInstance(stats.geminiApiKey);
     const result = await ai.models.generateContent({
       model: GEMINI_MODEL,
       contents: prompt,

@@ -18,7 +18,7 @@ type AppState = 'welcome' | 'idle' | 'analyzing' | 'explanation' | 'history' | '
 export default function App() {
   const [user, setUser] = useState<FirebaseUser | null>(null);
   const [isAdmin, setIsAdmin] = useState(false);
-  const { stats, addPastLecture, setDialect, incrementFreeUploads, upgradeSubscription, totalLectures } = useUserStore(user?.uid);
+  const { stats, addPastLecture, setDialect, setGeminiApiKey, incrementFreeUploads, upgradeSubscription, totalLectures } = useUserStore(user?.uid);
   
   const [isAuthReady, setIsAuthReady] = useState(false);
 
@@ -256,12 +256,18 @@ export default function App() {
         return;
       }
 
+      if (errorMessage.includes('MISSING_API_KEY')) {
+        alert('لم تقم بإدخال مفتاح Gemini API الخاص بك حتى الآن، أو أن المفتاح الحالي غير صالح. يرجى إدخال مفتاح صالح من لوحة التحكم للبدء.');
+        navigateTo('idle', true);
+        return;
+      }
+
       if (errorMessage.includes('xhr error') || errorMessage.includes('500') || errorMessage.includes('timeout')) {
         alert('انقطع الاتصال بالخادم (خطأ روتيني). يرجى الضغط على زر "رفع ملف" مرة أخرى أو تحديث الصفحة إذا تكرر الخطأ.');
       } else if (errorMessage.includes('Safety')) {
         alert('المحتوى المرفوع قد يحتوي على معلومات حساسة تمنع المعالجة بخصوصية عالية.');
       } else {
-        alert('حدث خطأ أثناء معالجة الملف. يرجى المحاولة مرة أخرى.');
+        alert(`حدث خطأ أثناء معالجة الملف: ${errorMessage || 'خطأ غير معروف'}\n\nيرجى التأكد من صحة مفتاح الـ API وصلاحية الملف.`);
       }
       navigateTo('idle', true);
     }
@@ -418,7 +424,7 @@ export default function App() {
 
         {appState === 'idle' && (
           <div className="animate-in fade-in duration-500">
-            <Dashboard stats={stats} onDialectChange={setDialect} onLectureSelect={handleLectureSelect} />
+            <Dashboard stats={stats} onDialectChange={setDialect} onLectureSelect={handleLectureSelect} onApiKeySave={setGeminiApiKey} />
             <div className="bg-white dark:bg-slate-900 p-8 rounded-3xl shadow-sm border border-slate-100 dark:border-slate-800 transition-colors duration-300">
               <h2 className="text-2xl font-bold text-teal-800 dark:text-teal-100 mb-6 text-center">ارفع محاضرتك ونبسطها إلك</h2>
               <Uploader onUpload={handleUpload} isProcessing={false} />
@@ -428,7 +434,7 @@ export default function App() {
 
         {appState === 'analyzing' && (
           <div className="animate-in fade-in duration-500">
-            <Dashboard stats={stats} onDialectChange={setDialect} onLectureSelect={handleLectureSelect} />
+            <Dashboard stats={stats} onDialectChange={setDialect} onLectureSelect={handleLectureSelect} onApiKeySave={setGeminiApiKey} />
             <div className="bg-white dark:bg-slate-900 p-8 rounded-3xl shadow-sm border border-slate-100 dark:border-slate-800 transition-colors duration-300">
               <Uploader onUpload={() => {}} isProcessing={true} />
             </div>
@@ -439,6 +445,7 @@ export default function App() {
           <div className="space-y-8 animate-in fade-in zoom-in duration-500">
             <ExplanationView 
               analysis={analysis}
+              stats={stats}
             />
           </div>
         )}

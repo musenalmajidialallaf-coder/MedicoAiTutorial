@@ -7,11 +7,14 @@ import { db, auth } from '../lib/firebase';
 import { collection, addDoc, serverTimestamp } from 'firebase/firestore';
 import { QuizView } from './QuizView';
 
+import { UserStats } from '../store/useUserStore';
+
 interface ExplanationViewProps {
   analysis: LectureAnalysis;
+  stats: UserStats;
 }
 
-export function ExplanationView({ analysis }: ExplanationViewProps) {
+export function ExplanationView({ analysis, stats }: ExplanationViewProps) {
   const [activeTab, setActiveTab] = useState<'explanation' | 'glossary' | 'quiz'>(() => {
     try {
       const saved = localStorage.getItem(`app_activeTab_${analysis.title}`);
@@ -62,7 +65,7 @@ export function ExplanationView({ analysis }: ExplanationViewProps) {
         setIsGeneratingQuiz(true);
         try {
           const fullExplanation = analysis.explanationBlocks.map(b => `${b.heading}\n${b.content}`).join('\n\n');
-          const generatedQuiz = await generateQuiz(fullExplanation);
+          const generatedQuiz = await generateQuiz(fullExplanation, stats);
           setMcqs(generatedQuiz);
         } catch (error) {
           console.error('Failed to pre-generate quiz', error);
@@ -72,7 +75,7 @@ export function ExplanationView({ analysis }: ExplanationViewProps) {
       };
       triggerBgQuiz();
     }
-  }, [analysis.title, analysis.explanationBlocks, mcqs.length]);
+  }, [analysis.title, analysis.explanationBlocks, mcqs.length, stats.geminiApiKey]);
 
   const submitFeedback = async () => {
     if (!feedbackType) return;
@@ -134,7 +137,7 @@ export function ExplanationView({ analysis }: ExplanationViewProps) {
     setActiveTab('quiz'); // Switch tab immediately to show loading spinner in QuizView if we had one, but we use isGeneratingQuiz on the tab button
     try {
       const fullExplanation = (analysis.explanationBlocks || []).map(b => `${b.heading}\n${b.content}`).join('\n\n');
-      const generatedQuiz = await generateQuiz(fullExplanation);
+      const generatedQuiz = await generateQuiz(fullExplanation, stats);
       setMcqs(generatedQuiz);
     } catch (error) {
       console.error('Failed to generate quiz', error);

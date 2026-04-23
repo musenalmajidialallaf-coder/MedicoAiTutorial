@@ -18,6 +18,7 @@ export interface UserStats {
   dialect: Dialect;
   subscription: 'free' | 'paid';
   freeUploadsUsed: number;
+  geminiApiKey?: string;
 }
 
 const DEFAULT_STATS: UserStats = {
@@ -26,6 +27,7 @@ const DEFAULT_STATS: UserStats = {
   dialect: 'Iraqi',
   subscription: 'free',
   freeUploadsUsed: 0,
+  geminiApiKey: '',
 };
 
 export function useUserStore(userId?: string) {
@@ -189,6 +191,10 @@ export function useUserStore(userId?: string) {
     saveStats({ ...stats, dialect });
   };
 
+  const setGeminiApiKey = (apiKey: string) => {
+    saveStats({ ...stats, geminiApiKey: apiKey });
+  };
+
   const incrementFreeUploads = () => {
     saveStats({ ...stats, freeUploadsUsed: (stats.freeUploadsUsed || 0) + 1 });
   };
@@ -197,5 +203,5 @@ export function useUserStore(userId?: string) {
     saveStats({ ...stats, subscription: 'paid' });
   };
 
-  return { stats, addPastLecture, setDialect, incrementFreeUploads, upgradeSubscription, totalLectures };
+  return { stats, addPastLecture, setDialect, setGeminiApiKey, incrementFreeUploads, upgradeSubscription, totalLectures };
 }
