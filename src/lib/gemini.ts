@@ -3,19 +3,7 @@ import { UserStats } from "../store/useUserStore";
 
 // Get AI instance dynamically based on user API key
 function getAIInstance(userApiKey?: string) {
-  const env = (import.meta as any).env;
-  const internalKey = (
-    process.env.GEMINI_API_KEY || 
-    env?.VITE_GEMINI_API_KEY || 
-    env?.GEMINI_API_KEY ||
-    ""
-  ).replace(/['"]/g, '').trim();
-
-  // If internal key exists and is valid, use it for the developer/user benefit
-  // Otherwise fall back to user-provided key
-  const finalKey = (internalKey && internalKey.length > 10) 
-    ? internalKey 
-    : ((userApiKey && userApiKey.trim().length > 10) ? userApiKey : "");
+  const finalKey = userApiKey && userApiKey.trim().length > 10 ? userApiKey.trim() : "";
   
   if (!finalKey || finalKey.length < 10) {
     throw new Error('MISSING_API_KEY');
