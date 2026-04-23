@@ -112,16 +112,17 @@ export function useUserStore(userId?: string) {
   }, []);
 
   const saveStats = async (newStats: UserStats) => {
+    // 1. Update local state immediately for responsiveness
     setStats(newStats);
     
-    // Save to LocalStorage
+    // 2. Save to LocalStorage
     try {
       localStorage.setItem(getStorageKey(userId), JSON.stringify(newStats));
     } catch (e) {
       console.warn('Failed to save to local storage', e);
     }
 
-    // Save to Firestore if logged in
+    // 3. Save to Firestore if logged in
     if (userId) {
       try {
         const userRef = doc(db, 'users', userId);
@@ -135,7 +136,7 @@ export function useUserStore(userId?: string) {
           displayName: auth.currentUser?.displayName || ''
         }, { merge: true });
         
-        // Also sync public profile
+        // Also sync public profile for leaderboard
         const publicRef = doc(db, 'public_profiles', userId);
         await setDoc(publicRef, {
           uid: userId,

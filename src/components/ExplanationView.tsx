@@ -57,11 +57,11 @@ export function ExplanationView({ analysis }: ExplanationViewProps) {
 
   // Auto-generate quiz in background if not already present
   useEffect(() => {
-    if (mcqs.length === 0 && analysis) {
+    if (mcqs.length === 0 && analysis && analysis.explanationBlocks) {
       const triggerBgQuiz = async () => {
         setIsGeneratingQuiz(true);
         try {
-          const fullExplanation = (analysis.explanationBlocks || []).map(b => `${b.heading}\n${b.content}`).join('\n\n');
+          const fullExplanation = analysis.explanationBlocks.map(b => `${b.heading}\n${b.content}`).join('\n\n');
           const generatedQuiz = await generateQuiz(fullExplanation);
           setMcqs(generatedQuiz);
         } catch (error) {
@@ -72,7 +72,7 @@ export function ExplanationView({ analysis }: ExplanationViewProps) {
       };
       triggerBgQuiz();
     }
-  }, [analysis.title]);
+  }, [analysis.title, analysis.explanationBlocks, mcqs.length]);
 
   const submitFeedback = async () => {
     if (!feedbackType) return;

@@ -24,7 +24,6 @@ export default function App() {
 
   useEffect(() => {
     const unsubscribe = onAuthStateChanged(auth, async (currentUser) => {
-      setUser(currentUser);
       if (currentUser && currentUser.email) {
         try {
           // Check admin status
@@ -37,26 +36,27 @@ export default function App() {
         } catch (e) {
           console.error("Error checking admin status", e);
         }
+      } else {
+        setIsAdmin(false);
       }
+      setUser(currentUser);
       setIsAuthReady(true);
     });
 
     // Fallback timer for isAuthReady to prevent infinite loading
     const timer = setTimeout(() => {
-      if (!isAuthReady) {
-        console.warn("Auth took too long, forcing ready state");
-        setIsAuthReady(true);
-      }
+      setIsAuthReady(true);
     }, 5000);
 
     return () => {
       unsubscribe();
       clearTimeout(timer);
     };
-  }, [isAuthReady]);
+  }, []);
 
+  // User sync to Firestore moved to useUserStore or handled only once on login
   useEffect(() => {
-    if (user) {
+    if (user && isAuthReady) {
       const syncUser = async () => {
         try {
           const userRef = doc(db, 'users', user.uid);
@@ -65,7 +65,7 @@ export default function App() {
           if (!userSnap.exists()) {
             const newUserData: any = {
               uid: user.uid,
-              subscription: stats.subscription,
+              subscription: stats.subscription || 'free',
               freeUploadsUsed: stats.freeUploadsUsed || 0,
               level: stats.level || 'Beginner',
               dialect: stats.dialect || 'Iraqi',
@@ -75,21 +75,13 @@ export default function App() {
             if (user.displayName) newUserData.displayName = user.displayName;
 
             await setDoc(userRef, newUserData);
-          } else {
-            await setDoc(userRef, {
-              uid: user.uid,
-              subscription: stats.subscription,
-              freeUploadsUsed: stats.freeUploadsUsed || 0,
-              level: stats.level || 'Beginner',
-              dialect: stats.dialect || 'Iraqi'
-            }, { merge: true });
           }
 
           // Sync public profile for leaderboard
           const publicRef = doc(db, 'public_profiles', user.uid);
           await setDoc(publicRef, {
             uid: user.uid,
-            displayName: userSnap.exists() && userSnap.data().displayName ? userSnap.data().displayName : (user.displayName || 'طالب متميز'),
+            displayName: user.displayName || 'طالب متميز',
             level: stats.level || 'Beginner'
           }, { merge: true });
 
@@ -99,7 +91,7 @@ export default function App() {
       };
       syncUser();
     }
-  }, [user, stats]);
+  }, [user?.uid, isAuthReady]);
 
   const getNavKey = (uid?: string) => uid ? `app_history_${uid}` : 'app_history';
   const getNavIndexKey = (uid?: string) => uid ? `app_historyIndex_${uid}` : 'app_historyIndex';
