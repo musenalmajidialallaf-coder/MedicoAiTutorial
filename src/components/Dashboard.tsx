@@ -78,7 +78,7 @@ export function Dashboard({ stats, onDialectChange, onLectureSelect, onApiKeySav
             <h4 className="font-bold text-indigo-800 dark:text-indigo-200 mb-2">خطوات الحصول على الكود مجاناً:</h4>
             <ol className="list-decimal list-inside space-y-1 text-slate-700 dark:text-slate-300">
               <li>افتح موقع <a href="https://aistudio.google.com/app/apikey" target="_blank" rel="noopener noreferrer" className="text-indigo-600 underline inline-flex items-center gap-1">Google AI Studio <ExternalLink className="w-3 h-3"/></a></li>
-              <li>سجل دخولك بحساب جوجل العادي</li>
+              <li>سجل دخولك بحساب جوجل العادي <span className="text-red-600 font-bold">(انتبه: استخدم حساب شخصي @gmail.com، الحسابات الجامعية محظورة غالباً)</span></li>
               <li>اضغط على Get API KEY</li>
               <li>اضغط على زر <span className="font-bold">"Create API key"</span></li>
               <li>انسخ الكود الطويل الناتج والصقه في الحقل أدناه</li>

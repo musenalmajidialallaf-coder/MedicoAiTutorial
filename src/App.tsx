@@ -256,6 +256,12 @@ export default function App() {
         return;
       }
 
+      if (errorMessage.includes('PERMISSION_DENIED') || errorMessage.includes('Your project has been denied access')) {
+        alert('مفتاح الـ API مرفوض (403 Permission Denied).\n\nسبب المشكلة: أنت تستخدم حساباً جامعياً (Student/Workspace account) والجامعة قد حظرت خدمة تطوير الذكاء الاصطناعي.\n\nالحل: سجل خروجك من الحساب الجامعي، وافتح موقع Google AI Studio بحساب Google شخصي عادي (@gmail.com) وقم بإنشاء مفتاح جديد هناك.');
+        navigateTo('idle', true);
+        return;
+      }
+
       if (errorMessage.includes('MISSING_API_KEY')) {
         alert('لم تقم بإدخال مفتاح Gemini API الخاص بك حتى الآن، أو أن المفتاح الحالي غير صالح. يرجى إدخال مفتاح صالح من لوحة التحكم للبدء.');
         navigateTo('idle', true);

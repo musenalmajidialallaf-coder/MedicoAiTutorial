@@ -161,6 +161,9 @@ Student's Question: ${question}`;
     if (error.message === 'MISSING_API_KEY') {
       return "يرجى إدخال مفتاح Gemini API في لوحة التحكم للتمكن من الدردشة.";
     }
+    if (error.message?.includes('PERMISSION_DENIED') || error.message?.includes('Your project has been denied access')) {
+      return "مفتاح الـ API مرفوض، يرجى التخلص من الحساب الجامعي واستخدام حساب @gmail شخصي لإنشاء المفتاح.";
+    }
     return `عذراً، حدث خطأ تقني في الاتصال بمحرك الذكاء.`;
   }
 }
