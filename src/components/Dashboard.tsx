@@ -158,7 +158,7 @@ export function Dashboard({ stats, onDialectChange, onLectureSelect, onApiKeySav
         </div>
       </div>
 
-      <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+      <div className="grid grid-cols-1 gap-4">
         <div className="bg-white dark:bg-slate-900 p-6 rounded-2xl shadow-sm border border-slate-100 dark:border-slate-800 flex items-center space-x-4 space-x-reverse transition-colors duration-300">
           <div className="p-3 bg-teal-50 dark:bg-teal-900/30 text-teal-600 dark:text-teal-400 rounded-xl">
             <Brain className="w-6 h-6" />
@@ -168,16 +168,6 @@ export function Dashboard({ stats, onDialectChange, onLectureSelect, onApiKeySav
             <p className="text-xl font-bold text-slate-800 dark:text-slate-100">
               {stats.level === 'Beginner' ? 'مبتدئ' : stats.level === 'Intermediate' ? 'متوسط' : 'متقدم'}
             </p>
-          </div>
-        </div>
-
-        <div className="bg-white dark:bg-slate-900 p-6 rounded-2xl shadow-sm border border-slate-100 dark:border-slate-800 flex items-center space-x-4 space-x-reverse transition-colors duration-300">
-          <div className="p-3 bg-emerald-50 dark:bg-emerald-900/30 text-emerald-600 dark:text-emerald-400 rounded-xl">
-            <Target className="w-6 h-6" />
-          </div>
-          <div>
-            <p className="text-sm text-slate-500 dark:text-slate-400 font-medium">عدد المحاضرات المرفوعة</p>
-            <p className="text-xl font-bold text-slate-800 dark:text-slate-100">{stats.pastLectures?.length || 0}</p>
           </div>
         </div>
       </div>

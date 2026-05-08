@@ -18,7 +18,7 @@ type AppState = 'welcome' | 'idle' | 'analyzing' | 'explanation' | 'history' | '
 export default function App() {
   const [user, setUser] = useState<FirebaseUser | null>(null);
   const [isAdmin, setIsAdmin] = useState(false);
-  const { stats, addPastLecture, setDialect, setGeminiApiKey, incrementFreeUploads, upgradeSubscription, totalLectures } = useUserStore(user?.uid);
+  const { stats, addPastLecture, setDialect, setGeminiApiKey, incrementFreeUploads, upgradeSubscription } = useUserStore(user?.uid);
   
   const [isAuthReady, setIsAuthReady] = useState(false);
 
@@ -424,7 +424,6 @@ export default function App() {
         {appState === 'welcome' && (
           <WelcomeView 
             onStartFree={() => navigateTo('idle', true)} 
-            totalLectures={totalLectures}
           />
         )}
 

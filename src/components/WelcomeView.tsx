@@ -2,10 +2,9 @@ import { Gift } from 'lucide-react';
 
 interface WelcomeViewProps {
   onStartFree: () => void;
-  totalLectures?: number;
 }
 
-export function WelcomeView({ onStartFree, totalLectures = 0 }: WelcomeViewProps) {
+export function WelcomeView({ onStartFree }: WelcomeViewProps) {
   return (
     <div className="max-w-4xl mx-auto animate-in fade-in zoom-in duration-500 mt-8 mb-16">
       <div className="bg-white dark:bg-slate-900 rounded-3xl shadow-xl border border-slate-100 dark:border-slate-800 overflow-hidden">
@@ -40,16 +39,6 @@ export function WelcomeView({ onStartFree, totalLectures = 0 }: WelcomeViewProps
           </div>
         </div>
 
-      </div>
-
-      {/* Global Lecture Counter */}
-      <div className="mt-12 text-center">
-        <div className="inline-flex flex-col items-center p-6 bg-white dark:bg-slate-900 rounded-3xl border border-slate-100 dark:border-slate-800 shadow-sm">
-          <p className="text-slate-500 dark:text-slate-400 text-sm font-bold mb-2">إجمالي المحاضرات المرفوعة</p>
-          <div className="text-4xl font-black text-transparent bg-clip-text bg-gradient-to-r from-teal-600 to-indigo-600">
-            {totalLectures.toLocaleString('ar-EG')}
-          </div>
-        </div>
       </div>
     </div>
   );

@@ -97,21 +97,8 @@ export function useUserStore(userId?: string) {
       }
     });
 
-    return () => unsubscribe();
+     return () => unsubscribe();
   }, [userId]);
-
-  const [totalLectures, setTotalLectures] = useState(0);
-
-  // Sync Total Lectures from global stats
-  useEffect(() => {
-    const statsRef = doc(db, 'system', 'stats');
-    const unsubscribe = onSnapshot(statsRef, (snap) => {
-      if (snap.exists()) {
-        setTotalLectures(snap.data().totalLectures || 0);
-      }
-    });
-    return () => unsubscribe();
-  }, []);
 
   const saveStats = async (newStats: UserStats) => {
     // 1. Update local state immediately for responsiveness
@@ -175,12 +162,6 @@ export function useUserStore(userId?: string) {
         await setDoc(lectureRef, lectureWithUid);
         console.log("Lecture synced to Firestore successfully");
 
-        // 3. Increment global counter (using an atomic increment if possible, or just a simple update for now)
-        // Note: For real world, use increment field value.
-        const { increment } = await import('firebase/firestore');
-        const statsRef = doc(db, 'system', 'stats');
-        await setDoc(statsRef, { totalLectures: increment(1) }, { merge: true });
-
       } catch (e: any) {
         console.error('CRITICAL: Firestore Lecture Save Failed. Error:', e.message || e);
       }
@@ -203,5 +184,5 @@ export function useUserStore(userId?: string) {
     saveStats({ ...stats, subscription: 'paid' });
   };
 
-  return { stats, addPastLecture, setDialect, setGeminiApiKey, incrementFreeUploads, upgradeSubscription, totalLectures };
+  return { stats, addPastLecture, setDialect, setGeminiApiKey, incrementFreeUploads, upgradeSubscription };
 }
